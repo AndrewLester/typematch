@@ -1,3 +1,7 @@
+:root {
+    --header-height: 50px;
+}
+
 *, ::before, ::after {
     box-sizing: border-box;
     margin: 0px;

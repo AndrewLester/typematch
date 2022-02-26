@@ -1,5 +1,5 @@
 {
-  "name": "code-in-the-dark",
+  "name": "viviracer",
   "version": "0.0.1",
   "scripts": {
     "dev": "svelte-kit dev",
