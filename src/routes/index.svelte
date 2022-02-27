@@ -229,6 +229,7 @@ p {
     min-height: 20px;
     font-size: 20px;
     font-kerning: none;
+    cursor: text;
 }
 span.letter {
     display: inline;
