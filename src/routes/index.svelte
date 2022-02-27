@@ -1,19 +1,38 @@
 <script>
 import { timerTimeFormat } from '$lib/format';
+import passages from '$lib/passages';
 import { time } from '$lib/stores';
 import { lcp } from '$lib/string';
+import { tick } from 'svelte';
 import { fade, fly, slide } from 'svelte/transition';
 
 let input;
 let start = undefined;
 let elapsed = 0;
+let passage = passages[Math.trunc(Math.random() * passages.length)];
 $: if (!done) {
     elapsed = start && $time.getTime() - start.getTime();
 }
 
-const passage =
-    "This is what you're supposed to type. It should be longg\nYeah I know you should keep typing or else\nThird paragraph";
-const passageSections = passage.split('\n').map((section) => section + '↩');
+function splitPassage(passage) {
+    let sections = passage
+        .replace(/\n/i, '↩\n')
+        .replace(/’/i, "'")
+        .split(/[\n]/i);
+    sections = sections.flatMap((section) => {
+        const split = [];
+        while (section.length > 70) {
+            const sub = section.slice(0, 70);
+            split.push(sub.trim());
+            section = section.slice(70);
+        }
+        split.push(section);
+        return split;
+    });
+    return sections;
+}
+
+$: passageSections = splitPassage(passage);
 let currentSectionNumber = 0;
 $: currentSection = passageSections[currentSectionNumber];
 let text = '';
@@ -54,6 +73,8 @@ const handleKeyDown = (e) => {
         if (e.key === 'Enter') {
             text += '↩';
         } else {
+            if (e.key === ' ' && text.length === 0) return;
+
             text += e.key;
 
             if (start === undefined) {
@@ -97,6 +118,7 @@ function restart() {
     lastTyped = 0;
     peakWPM = 0;
     currentSectionNumber = 0;
+    passage = passages[Math.random() * passages.length];
     done = false;
 }
 </script>
@@ -121,10 +143,35 @@ function restart() {
     <div
         class="wrapper"
         class:done
-        style="--current-section-number: {currentSectionNumber};"
+        style="--current-section-number: {currentSectionNumber +
+            (done
+                ? 0
+                : Math.max(
+                      0,
+                      currentSectionNumber -
+                          (currentSectionNumber >= passageSections.length - 1
+                              ? currentSectionNumber -
+                                passageSections.length +
+                                3
+                              : 2),
+                  ))};"
     >
-        {#each passageSections as section, i}
-            {#if currentSectionNumber === i}
+        {#each passageSections.slice(done ? 0 : Math.max(0, currentSectionNumber - (currentSectionNumber >= passageSections.length - 1 ? currentSectionNumber - passageSections.length + 3 : 2)), Math.min(passageSections.length, currentSectionNumber + (currentSectionNumber === 0 ? 4 : 3))) as section, i}
+            {@const sectionIndex =
+                i +
+                (done
+                    ? 0
+                    : Math.max(
+                          0,
+                          currentSectionNumber -
+                              (currentSectionNumber >=
+                              passageSections.length - 1
+                                  ? currentSectionNumber -
+                                    passageSections.length +
+                                    3
+                                  : 2),
+                      ))}
+            {#if currentSectionNumber === sectionIndex}
                 <div class="editor" transition:slide>
                     <p>
                         {#each section as letter, i}
@@ -155,7 +202,6 @@ function restart() {
         autocapitalize="false"
         autocorrect="false"
         spellcheck="false"
-        acceptcharset="ascii"
     />
 </main>
 
@@ -229,7 +275,7 @@ div.wrapper:not(.done)::before {
     left: -30px;
     top: 0px;
     transform: translateY(
-        calc(10px + calc(var(--current-section-number) * 24px))
+        calc(8px + calc(var(--current-section-number) * 24px))
     );
     transition: transform 200ms ease;
     font-size: 20px;
