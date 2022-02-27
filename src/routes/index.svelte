@@ -26,7 +26,7 @@ function splitPassage(passage) {
             split.push(sub.trim());
             section = section.slice(70);
         }
-        split.push(section);
+        split.push(section.trim());
         return split;
     });
     return sections;
@@ -39,6 +39,7 @@ let text = '';
 let lastTyped = 0;
 let done = false;
 let peakWPM = 0;
+$: console.log(currentSection);
 const handleKeyDown = (e) => {
     if (done) {
         return;
@@ -72,6 +73,8 @@ const handleKeyDown = (e) => {
     ) {
         if (e.key === 'Enter') {
             text += '↩';
+        } else if (e.key === '>') {
+            text = currentSection;
         } else {
             if (e.key === ' ' && text.length === 0) return;
 
@@ -118,9 +121,23 @@ function restart() {
     lastTyped = 0;
     peakWPM = 0;
     currentSectionNumber = 0;
-    passage = passages[Math.random() * passages.length];
+    passage = passages[Math.trunc(Math.random() * passages.length)];
     done = false;
 }
+
+$: sectionViewStart = done
+    ? 0
+    : Math.max(
+          0,
+          currentSectionNumber -
+              (currentSectionNumber >= passageSections.length - 1 ? 3 : 2),
+      );
+$: sectionViewEnd = done
+    ? passageSections.length
+    : Math.min(
+          passageSections.length,
+          currentSectionNumber + (currentSectionNumber === 0 ? 4 : 3),
+      );
 </script>
 
 <main>
@@ -143,34 +160,11 @@ function restart() {
     <div
         class="wrapper"
         class:done
-        style="--current-section-number: {currentSectionNumber +
-            (done
-                ? 0
-                : Math.max(
-                      0,
-                      currentSectionNumber -
-                          (currentSectionNumber >= passageSections.length - 1
-                              ? currentSectionNumber -
-                                passageSections.length +
-                                3
-                              : 2),
-                  ))};"
+        style="--current-section-number: {currentSectionNumber -
+            sectionViewStart};"
     >
-        {#each passageSections.slice(done ? 0 : Math.max(0, currentSectionNumber - (currentSectionNumber >= passageSections.length - 1 ? currentSectionNumber - passageSections.length + 3 : 2)), Math.min(passageSections.length, currentSectionNumber + (currentSectionNumber === 0 ? 4 : 3))) as section, i}
-            {@const sectionIndex =
-                i +
-                (done
-                    ? 0
-                    : Math.max(
-                          0,
-                          currentSectionNumber -
-                              (currentSectionNumber >=
-                              passageSections.length - 1
-                                  ? currentSectionNumber -
-                                    passageSections.length +
-                                    3
-                                  : 2),
-                      ))}
+        {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i}
+            {@const sectionIndex = i + sectionViewStart}
             {#if currentSectionNumber === sectionIndex}
                 <div class="editor" transition:slide>
                     <p>
@@ -183,10 +177,10 @@ function restart() {
                         {/each}
                     </p>
                     <!-- prettier-ignore -->
-                    <pre>{#each common_prefix as letter}<span class="letter" in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
+                    <pre>{#each common_prefix as letter}<span class="letter correct" in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
                 </div>
             {:else}
-                <div in:slide>
+                <div transition:slide>
                     <p>{section}</p>
                 </div>
             {/if}
@@ -253,6 +247,9 @@ span.carrot {
     height: 100%;
     color: white;
 }
+span.correct {
+    color: rgb(217, 255, 228);
+}
 span.carrot.animate {
     animation: blink 1s infinite;
 }
@@ -275,7 +272,7 @@ div.wrapper:not(.done)::before {
     left: -30px;
     top: 0px;
     transform: translateY(
-        calc(8px + calc(var(--current-section-number) * 24px))
+        calc(8px + calc(var(--current-section-number) * 23px))
     );
     transition: transform 200ms ease;
     font-size: 20px;
@@ -290,6 +287,7 @@ span.restart {
     0% {
         transform: translateY(0px);
         opacity: 1;
+        color: white;
     }
     99% {
         transform: translateY(22px);
@@ -298,6 +296,7 @@ span.restart {
     100% {
         transform: translateY(22px);
         opacity: 0;
+        color: rgb(217, 255, 228);
     }
 }
 @keyframes blink {
