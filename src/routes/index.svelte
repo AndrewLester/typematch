@@ -163,7 +163,7 @@ $: sectionViewEnd = done
         style="--current-section-number: {currentSectionNumber -
             sectionViewStart};"
     >
-        {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i)}
+        {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i + sectionViewStart)}
             {@const sectionIndex = i + sectionViewStart}
             {#if currentSectionNumber === sectionIndex}
                 <div class="editor" transition:slide>
