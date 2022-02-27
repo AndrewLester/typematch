@@ -163,7 +163,7 @@ $: sectionViewEnd = done
         style="--current-section-number: {currentSectionNumber -
             sectionViewStart};"
     >
-        {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i}
+        {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i)}
             {@const sectionIndex = i + sectionViewStart}
             {#if currentSectionNumber === sectionIndex}
                 <div class="editor" transition:slide>
@@ -208,6 +208,7 @@ main {
     height: 100vh;
     margin: 0px auto;
     width: max-content;
+    min-width: 700px;
 }
 h3,
 h4 {
@@ -265,6 +266,12 @@ div.editor pre {
 }
 div.wrapper {
     position: relative;
+}
+div > div > p {
+    transition: color 200ms ease;
+}
+div.done > div > p {
+    color: white;
 }
 div.wrapper:not(.done)::before {
     content: '→';
