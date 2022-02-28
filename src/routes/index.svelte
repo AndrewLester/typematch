@@ -18,6 +18,7 @@ function splitPassage(passage) {
     let sections = passage
         .replace(/\n/i, '↩\n')
         .replace(/’/i, "'")
+        .replace(/[”“]/i, '"')
         .split(/[\n]/i);
     sections = sections.flatMap((section) => {
         const split = [];
