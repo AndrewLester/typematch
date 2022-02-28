@@ -22,9 +22,12 @@ function splitPassage(passage) {
     sections = sections.flatMap((section) => {
         const split = [];
         while (section.length > 70) {
-            const sub = section.slice(0, 70);
+            const nextSpaceLocation = section.indexOf(' ', 60);
+            const nextSpace =
+                nextSpaceLocation === -1 ? section.length : nextSpaceLocation;
+            const sub = section.slice(0, Math.min(70, nextSpace));
             split.push(sub.trim());
-            section = section.slice(70);
+            section = section.slice(Math.min(70, nextSpace));
         }
         split.push(section.trim());
         return split;
@@ -39,7 +42,6 @@ let text = '';
 let lastTyped = 0;
 let done = false;
 let peakWPM = 0;
-$: console.log(currentSection);
 const handleKeyDown = (e) => {
     if (done) {
         return;
