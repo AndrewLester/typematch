@@ -27,7 +27,7 @@ function splitPassage(passage) {
             const nextSpace =
                 nextSpaceLocation === -1 ? section.length : nextSpaceLocation;
             const sub = section.slice(0, Math.min(70, nextSpace));
-            split.push(sub.trim());
+            split.push(sub.trim() + ' ');
             section = section.slice(Math.min(70, nextSpace));
         }
         split.push(section.trim());
