@@ -261,9 +261,9 @@ span.hidden {
     animation: fly 200ms ease-out forwards;
 }
 span.error {
-    color: red;
+    color: #ff6161;
     text-decoration: underline;
-    text-decoration-color: red;
+    text-decoration-color: #ff6161;
 }
 span.carrot {
     display: inline-block;
