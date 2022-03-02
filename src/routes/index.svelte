@@ -16,10 +16,10 @@ $: if (!done) {
 
 function splitPassage(passage) {
     let sections = passage
-        .replace(/\n/i, '↩\n')
-        .replace(/’/i, "'")
-        .replace(/[”“]/i, '"')
-        .split(/[\n]/i);
+        .replace(/\n/gi, '↩\n')
+        .replace(/’/gi, "'")
+        .replace(/[”“]/gi, '"')
+        .split(/[\n]/gi);
     sections = sections.flatMap((section) => {
         const split = [];
         while (section.length > 70) {
