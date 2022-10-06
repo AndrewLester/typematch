@@ -1,0 +1,18 @@
+name = "typematch-multiplayer"
+main = "src/index.ts"
+compatibility_date = "2022-05-10"
+
+compatibility_flags = ["durable_object_alarms"]
+
+[durable_objects]
+bindings = [
+  { name = "GAME_DO", class_name = "GameDurableObject" },
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["WebSocketDurableObject"]
+
+[[migrations]]
+tag = "v2"
+renamed_classes = [{from = "WebSocketDurableObject", to = "GameDurableObject"}]

@@ -1,0 +1,32 @@
+:root {
+    --header-height: 50px;
+    color: white;
+    --font-body: 'Inter';
+    --font-heading: 'Raleway';
+}
+
+*,
+::before,
+::after {
+    box-sizing: border-box;
+    margin: 0px;
+    font-family: var(--font-body);
+}
+
+body {
+    background-color: rgb(31, 31, 31);
+}
+
+h1 {
+    font-size: 2.5rem;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-heading);
+    margin-bottom: 1em;
+}

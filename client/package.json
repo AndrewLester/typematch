@@ -29,6 +29,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@octokit/rest": "^18.12.0"
+    "@octokit/rest": "^18.12.0",
+    "svelte-local-storage-store": "^0.3.1"
   }
 }
