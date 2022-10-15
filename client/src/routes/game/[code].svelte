@@ -3,6 +3,7 @@ export const load: Load = async ({ params }) => {
     const game = await fetch(`http://localhost:8787/game/${params.code}`).then(
         (res) => res.json(),
     );
+
     return {
         props: {
             game,
@@ -12,17 +13,20 @@ export const load: Load = async ({ params }) => {
 </script>
 
 <script lang="ts">
+import { browser } from '$app/env';
+
 import { page } from '$app/stores';
 import Editor from '$components/Editor.svelte';
 import { passages } from '$lib/passages';
 import { multiplayerWSStore, preferences } from '$lib/stores';
-import type { MultiplayerGame } from '$lib/types';
+import { GameState, type MultiplayerGame } from '$lib/types';
 import type { Load } from '@sveltejs/kit';
 import { onMount } from 'svelte';
 import { slide } from 'svelte/transition';
 
 export let game: MultiplayerGame;
-let modal: HTMLDialogElement | undefined;
+let joinModal: HTMLDialogElement | undefined;
+let inGameModal: HTMLDialogElement | undefined;
 let extend = false;
 let gameStore: ReturnType<typeof multiplayerWSStore>;
 $: if ($preferences) {
@@ -30,16 +34,28 @@ $: if ($preferences) {
         `ws://localhost:8787/connect/${$page.params.code}?name=${$preferences.name}&userId=${$preferences.userId}`,
     );
 }
-$: console.log(passage);
 $: if ($gameStore) game = $gameStore;
+$: otherUsers = game?.users
+    ? Object.values(game?.users).filter(
+          (user) => user.id !== $preferences?.userId,
+      )
+    : [];
+$: me = $preferences?.userId ? game?.users[$preferences?.userId] : null;
 $: passage =
-    game?.passageIndex && game?.passageIndex >= 0
-        ? passages[game?.passageIndex]
-        : undefined;
-
+    game && game?.passageIndex >= 0 ? passages[game?.passageIndex] : undefined;
+$: position = me?.position ?? 0;
 onMount(() => {
+    if (me) {
+        return;
+    }
+
+    if (game.state !== GameState.Waiting) {
+        inGameModal?.showModal();
+        return;
+    }
+
     if (!$preferences) {
-        modal?.showModal();
+        joinModal?.showModal();
     }
 });
 
@@ -68,7 +84,13 @@ function joinGame(e: SubmitEvent) {
             '',
         userId: crypto.randomUUID(),
     });
-    modal?.close();
+    joinModal?.close();
+}
+
+async function startGame() {
+    await fetch(`http://localhost:8787/game/${$page.params.code}/start`, {
+        method: 'POST',
+    });
 }
 </script>
 
@@ -95,30 +117,41 @@ function joinGame(e: SubmitEvent) {
             {#if game?.users}
                 <section>
                     <h2>
-                        Players: {#each Object.values(game.users) as user (user.id)}
-                            <span class:me={user.id === $preferences?.userId}
+                        Players:
+                        {#each Object.values(game.users) as user (user.id)}
+                            <span
+                                class="player"
+                                class:me={user.id === $preferences?.userId}
+                                class:offline={!user.connected && browser}
                                 >{user.name}
                             </span>
                         {/each}
+                        {#if me?.admin && game.state === GameState.Waiting}
+                            <button on:click={startGame}>Start game</button>
+                        {/if}
                     </h2>
                 </section>
             {/if}
-            <Editor
-                {passage}
-                editable={true}
-                selfStart={false}
-                otherCursors={game?.users
-                    ? Object.values(game?.users).filter(
-                          (user) => user.id !== $preferences?.userId,
-                      )
-                    : []}
-                on:input={onInput}
-            />
+            {#if game.state == GameState.Finished}
+                <p transition:slide|local>Leaderboard</p>
+            {:else}
+                <div transition:slide|local>
+                    <Editor
+                        {passage}
+                        editable={game.state === GameState.Playing}
+                        startTime={game.startTime}
+                        selfStart={false}
+                        {position}
+                        otherCursors={otherUsers}
+                        on:input={onInput}
+                    />
+                </div>
+            {/if}
         </div>
     {/if}
 </section>
 
-<dialog bind:this={modal} class="modal">
+<dialog bind:this={joinModal} class="modal">
     <h1>Join Game</h1>
     <h2>Please enter your name</h2>
     <form on:submit={joinGame}>
@@ -126,6 +159,12 @@ function joinGame(e: SubmitEvent) {
         <input type="text" name="name" required minlength="1" maxlength="30" />
         <button>Continue</button>
     </form>
+</dialog>
+
+<dialog bind:this={inGameModal} class="modal">
+    <h1>Can't Join</h1>
+    <h2>This game is in progress</h2>
+    <p>Wait for the next one :)</p>
 </dialog>
 
 <style>
@@ -143,8 +182,15 @@ function joinGame(e: SubmitEvent) {
     background-color: rgba(0, 0, 0, 0.5);
     backdrop-filter: saturate(180%) blur(5px);
 }
+span.player {
+    margin-right: 5px;
+}
 span.me {
     color: green;
+}
+span.offline {
+    text-decoration: line-through;
+    color: rgb(163, 163, 163);
 }
 .select-wrapper {
     width: 100%;

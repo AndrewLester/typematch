@@ -6,6 +6,8 @@ export interface User {
     webSocket: WebSocket;
     ping: number;
     position: number;
+    connected: boolean;
+    admin: boolean;
 }
 
 export const enum GameState {
@@ -16,6 +18,7 @@ export const enum GameState {
 
 export interface MultiplayerGame {
     state: GameState;
+    startTime: number;
     users: Record<string, User>;
     passageIndex: number;
 }

@@ -6,6 +6,8 @@ interface User {
     webSocket: WebSocket;
     ping: number;
     position: number;
+    connected: boolean;
+    admin: boolean;
 }
 
 const enum GameState {
@@ -55,6 +57,7 @@ const healthCheckInterval = 10e3;
 
 export interface MultiplayerGame {
     state: GameState;
+    startTime: number | undefined;
     users: Record<string, User>;
     passageIndex: number;
 }
@@ -69,6 +72,7 @@ export class GameDurableObject {
         this.dolocation = '';
         this.game = {
             users: {},
+            startTime: undefined,
             state: GameState.Waiting,
             passageIndex: -1,
         };
@@ -78,15 +82,28 @@ export class GameDurableObject {
     }
 
     async fetch(request: Request) {
-        if (new URL(request.url).pathname.endsWith('/passage')) {
+        const { pathname } = new URL(request.url);
+
+        if (pathname.endsWith('/passage')) {
+            if (this.game.passageIndex !== -1)
+                return new Response(null, { status: 400 });
             const text = await request.text();
             this.game.passageIndex = parseInt(text);
             this.sendGame();
             return new Response(null, { status: 200 });
         }
 
-        if (new URL(request.url).pathname.startsWith('/game/')) {
-            return new Response(JSON.stringify(this.game), { status: 200 });
+        if (pathname.startsWith('/game/') && request.method === 'GET') {
+            return new Response(JSON.stringify(this.getGame()), {
+                status: 200,
+            });
+        }
+
+        if (pathname.startsWith('/game/') && request.method === 'POST') {
+            this.game.state = GameState.Playing;
+            this.game.startTime = new Date().getTime();
+            this.sendGame();
+            return new Response(null, { status: 200 });
         }
 
         let pair = new WebSocketPair();
@@ -103,15 +120,26 @@ export class GameDurableObject {
         const metadata = request.cf;
         const submission = new URL(request.url).searchParams;
         const userId = submission.get('userId');
-        this.game.users[userId] = {
-            id: userId,
-            name: submission.get('name'),
-            city: metadata.city,
-            country: metadata.country,
-            webSocket: webSocket,
-            ping: 0,
-            position: 0,
-        };
+
+        if (
+            !this.game.users[userId] ||
+            Object.keys(this.game.users).length === 0
+        ) {
+            this.game.users[userId] = {
+                id: userId,
+                name: submission.get('name'),
+                city: metadata.city,
+                country: metadata.country,
+                webSocket: webSocket,
+                ping: 0,
+                position: 0,
+                connected: true,
+                admin: Object.keys(this.game.users).length === 0,
+            };
+        }
+
+        this.game.users[userId].connected = true;
+        this.game.users[userId].webSocket = webSocket;
 
         this.sendGame();
 
@@ -170,13 +198,14 @@ export class GameDurableObject {
         });
 
         const closeOrErrorHandler = () => {
-            delete this.game.users[userId];
+            this.game.users[userId].connected = false;
+            this.sendGame();
         };
         webSocket.addEventListener('close', closeOrErrorHandler);
         webSocket.addEventListener('error', closeOrErrorHandler);
     }
 
-    sendGame() {
+    getGame() {
         const users = {} as Record<string, User>;
         for (const [_, user] of Object.entries(this.game.users)) {
             users[user.id] = {
@@ -186,13 +215,19 @@ export class GameDurableObject {
             };
         }
 
+        return {
+            ...this.game,
+            users,
+        };
+    }
+
+    sendGame() {
+        const game = this.getGame();
+
         this.broadcast(
             JSON.stringify({
                 type: 'game',
-                data: {
-                    ...this.game,
-                    users,
-                },
+                data: game,
             })
         );
     }
@@ -200,14 +235,13 @@ export class GameDurableObject {
     // broadcast() broadcasts a message to all clients.
     broadcast(message: string, exclude: Set<User['id']> = new Set()) {
         // Iterate over all the sessions sending them messages.
-        console.log('Broadcasting', message);
         Object.entries(this.game.users)
-            .filter(([_, user]) => !exclude.has(user.id))
+            .filter(([_, user]) => !exclude.has(user.id) && user.connected)
             .forEach(([key, user]) => {
                 try {
                     user.webSocket.send(message);
                 } catch (err) {
-                    delete this.game.users[key];
+                    this.game.users[key].connected = false;
                 }
             });
     }

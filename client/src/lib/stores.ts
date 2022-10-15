@@ -21,7 +21,13 @@ export function multiplayerWSStore(webSocketURL: string) {
                 return;
             }
 
-            socket = new WebSocket(webSocketURL);
+            try {
+                socket = new WebSocket(webSocketURL);
+            } catch {
+                set(undefined);
+                return;
+            }
+
             socket.addEventListener('open', () => {
                 console.log('Connecting to web socket');
             });

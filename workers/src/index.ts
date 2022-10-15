@@ -75,13 +75,11 @@ const worker: ExportedHandler<Environment> = {
                 });
             } else if (url.pathname.startsWith('/game')) {
                 const [_, code] = url.pathname.match(/\/game\/([\w\d]+).*/);
-                if (url.pathname.endsWith('/passage')) {
-                    await getDurableObject(env, code).fetch(request);
-                    return new Response(null, {
-                        status: 200,
-                        headers: corsHeaders,
-                    });
-                }
+                await getDurableObject(env, code).fetch(request);
+                return new Response(null, {
+                    status: 200,
+                    headers: corsHeaders,
+                });
             } else {
                 return new Response(null, { status: 404 });
             }

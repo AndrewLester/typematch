@@ -10,7 +10,9 @@ import { fade, slide } from 'svelte/transition';
 export let passage: string | undefined = undefined;
 export let editable = true;
 export let selfStart = true;
+export let startTime: number | undefined = undefined;
 export let otherCursors: User[] = [];
+export let position: number = 0;
 
 const dispatch = createEventDispatcher<{ input: string }>();
 
@@ -44,10 +46,12 @@ const getCurrentWordsTyped = () => wordsTyped;
 $: passageSections = passage ? splitPassage(passage) : [];
 $: currentSection = passageSections[currentSectionNumber];
 
-$: if (!done) {
+$: if ((!done && selfStart && editable) || (!selfStart && editable)) {
     elapsed = start ? $time.getTime() - start.getTime() : 0;
 }
-
+$: if (!selfStart && editable && startTime) {
+    start = new Date(startTime);
+}
 $: if (elapsed) {
     prevWordsTyped = getCurrentWordsTyped();
     wordsTyped = calculateCorrectWordsTyped();
@@ -66,6 +70,40 @@ $: for (const [cutoff, emoji] of Object.entries(moods)) {
         break;
     }
 }
+$: firstPosition = position;
+$: if (position > 0 && !firstPosition) {
+    firstPosition = position;
+}
+let loadedFirstPosition = false;
+$: if (!selfStart && editable && !loadedFirstPosition && input !== undefined) {
+    if (firstPosition >= (passage?.length ?? 0)) {
+        done = true;
+        currentSectionNumber = passageSections.length;
+        text = '';
+    }
+    let total = '';
+    for (let i = 0; i < passageSections.length && !done; i++) {
+        const section = passageSections[i];
+        total += section;
+        if (firstPosition <= total.length) {
+            currentSectionNumber = i;
+            const typed = section.substring(
+                0,
+                firstPosition - (total.length - section.length),
+            );
+            text = typed;
+            const calculated = calculateCorrectWordsTyped(
+                total.substring(0, total.length - section.length) + typed,
+            );
+            prevWordsTyped = calculated;
+            wordsTyped = calculated;
+            input!.value += text;
+            break;
+        }
+        input!.value += section;
+    }
+    loadedFirstPosition = true;
+}
 
 $: sectionViewStart = done
     ? 0
@@ -82,7 +120,7 @@ $: sectionViewEnd = done
       );
 
 function handleKeyDown(e: KeyboardEvent) {
-    if (done || !editable) {
+    if (done || !editable || !loadedFirstPosition) {
         return;
     }
 
@@ -148,8 +186,8 @@ function handleKeyDown(e: KeyboardEvent) {
     lastTyped = $time.getTime();
 }
 
-function calculateCorrectWordsTyped() {
-    const correctPrefix = lcp(input?.value || '', passage || '');
+function calculateCorrectWordsTyped(str?: string) {
+    const correctPrefix = lcp(str || input?.value || '', passage || '');
     return correctPrefix ? correctPrefix.length / 5 : 0;
 }
 
@@ -177,6 +215,9 @@ function restart() {
     </h3>
     <h4>
         <span class="time">{start ? timerTimeFormat(elapsed) : '0:00'}</span>
+        {#if !start && !selfStart}
+            Waiting to start...
+        {/if}
         {#if !start && selfStart}
             Ready? Begin typing
         {/if}
@@ -258,7 +299,7 @@ h4 {
     color: white;
     font-weight: normal;
     font-family: Arial, Helvetica, sans-serif;
-    margin-bottom: 0;
+    margin-bottom: 5px;
 }
 h4 {
     margin-bottom: 20px;
