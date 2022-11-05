@@ -1,10 +1,7 @@
 <script lang="ts">
-import Editor from '../components/Editor.svelte';
+import SingleplayerEditor from '../components/SingleplayerEditor.svelte';
 
-import { passages } from '$lib/passages';
 import { fade, slide } from 'svelte/transition';
-
-const passage = passages[Math.trunc(Math.random() * passages.length)];
 </script>
 
 <svelte:head>
@@ -19,5 +16,5 @@ const passage = passages[Math.trunc(Math.random() * passages.length)];
 >
 
 <div in:slide={{ delay: 250 }} out:slide>
-    <Editor {passage} editable={true} />
+    <SingleplayerEditor />
 </div>

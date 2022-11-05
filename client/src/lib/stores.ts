@@ -28,6 +28,9 @@ export function multiplayerWSStore(webSocketURL: string) {
                 return;
             }
 
+            let lastPingTime = Date.now();
+            let lastPingMs = 0;
+
             socket.addEventListener('open', () => {
                 console.log('Connecting to web socket');
             });
@@ -35,12 +38,25 @@ export function multiplayerWSStore(webSocketURL: string) {
                 const data = JSON.parse(message.data);
                 if (data.type === 'game') {
                     set(data?.data);
+                } else if (data.type === 'pong') {
+                    lastPingMs = Date.now() - lastPingTime;
                 }
             });
+
+            const interval = setInterval(() => {
+                lastPingTime = Date.now();
+                socket?.send(
+                    JSON.stringify({
+                        type: 'ping',
+                        data: { id: crypto.randomUUID(), lastPingMs },
+                    }),
+                );
+            }, 1000);
 
             return () => {
                 socket?.close();
                 socket = undefined;
+                clearInterval(interval);
             };
         },
     );
@@ -59,7 +75,6 @@ export function multiplayerWSStore(webSocketURL: string) {
 
 export interface Preferences {
     name: string;
-    userId: string;
 }
 
 export const preferences = storageWritable<Preferences | undefined>(

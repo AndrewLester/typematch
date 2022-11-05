@@ -1,12 +1,18 @@
 <script context="module" lang="ts">
-export const load: Load = async ({ params }) => {
-    const game = await fetch(`http://localhost:8787/game/${params.code}`).then(
-        (res) => res.json(),
-    );
+export const load: Load = async ({ params, fetch }) => {
+    const [game, me] = await Promise.all([
+        fetch(`http://localhost:8787/game/${params.code}`).then((res) =>
+            res.json(),
+        ),
+        fetch(`http://localhost:8787/game/${params.code}/me`, {
+            credentials: 'include',
+        }).then((res) => (res.status < 300 ? res.json() : null)),
+    ]);
 
     return {
         props: {
             game,
+            me,
         },
     };
 };
@@ -14,33 +20,38 @@ export const load: Load = async ({ params }) => {
 
 <script lang="ts">
 import { browser } from '$app/env';
+import { invalidate } from '$app/navigation';
 
 import { page } from '$app/stores';
-import Editor from '$components/Editor.svelte';
+import MultiplayerEditor from '$components/MultiplayerEditor.svelte';
 import { passages } from '$lib/passages';
 import { multiplayerWSStore, preferences } from '$lib/stores';
-import { GameState, type MultiplayerGame } from '$lib/types';
+import { GameState, type MultiplayerGame, type User } from '$lib/types';
 import type { Load } from '@sveltejs/kit';
 import { onMount } from 'svelte';
-import { slide } from 'svelte/transition';
+import { fade, slide } from 'svelte/transition';
 
 export let game: MultiplayerGame;
+export let me: User | null;
 let joinModal: HTMLDialogElement | undefined;
 let inGameModal: HTMLDialogElement | undefined;
 let extend = false;
 let gameStore: ReturnType<typeof multiplayerWSStore>;
-$: if ($preferences) {
+$: userCount = Object.values(game?.users).length;
+// Not sure why but sometimes $page.params.code is undefined
+$: if ($preferences?.name && $page.params.code) {
     gameStore = multiplayerWSStore(
-        `ws://localhost:8787/connect/${$page.params.code}?name=${$preferences.name}&userId=${$preferences.userId}`,
+        `ws://localhost:8787/game/${$page.params.code}/connect?name=${$preferences?.name}`,
     );
 }
+$: if (!me && userCount > 0 && browser) {
+    invalidate(`http://localhost:8787/game/${$page.params.code}/me`);
+}
+$: console.log(game?.users, me);
 $: if ($gameStore) game = $gameStore;
 $: otherUsers = game?.users
-    ? Object.values(game?.users).filter(
-          (user) => user.id !== $preferences?.userId,
-      )
+    ? Object.values(game?.users).filter((user) => user.id !== me?.id)
     : [];
-$: me = $preferences?.userId ? game?.users[$preferences?.userId] : null;
 $: passage =
     game && game?.passageIndex >= 0 ? passages[game?.passageIndex] : undefined;
 $: position = me?.position ?? 0;
@@ -68,7 +79,9 @@ async function selectPassage(passageIndex: number) {
         headers: {
             'Content-Type': 'text/plain',
         },
+        credentials: 'include',
     });
+
     passage = passages[passageIndex];
 }
 
@@ -82,14 +95,14 @@ function joinGame(e: SubmitEvent) {
         name:
             new FormData(e.target as HTMLFormElement).get('name')?.toString() ??
             '',
-        userId: crypto.randomUUID(),
     });
     joinModal?.close();
 }
 
-async function startGame() {
-    await fetch(`http://localhost:8787/game/${$page.params.code}/start`, {
+function startGame() {
+    fetch(`http://localhost:8787/game/${$page.params.code}/start`, {
         method: 'POST',
+        credentials: 'include',
     });
 }
 </script>
@@ -115,32 +128,33 @@ async function startGame() {
     {:else}
         <div style="padding: 20px;" transition:slide|local>
             {#if game?.users}
-                <section>
-                    <h2>
-                        Players:
-                        {#each Object.values(game.users) as user (user.id)}
-                            <span
-                                class="player"
-                                class:me={user.id === $preferences?.userId}
-                                class:offline={!user.connected && browser}
-                                >{user.name}
-                            </span>
-                        {/each}
-                        {#if me?.admin && game.state === GameState.Waiting}
-                            <button on:click={startGame}>Start game</button>
-                        {/if}
-                    </h2>
+                <section class="multiplayer-bar">
+                    {#if me?.admin && game.state === GameState.Waiting}
+                        <button on:click={startGame} transition:fade
+                            >Start game</button
+                        >
+                    {/if}
+                    {#each Object.values(game.users) as user (user.id)}
+                        <div
+                            class="player"
+                            class:me={user.id === me?.id}
+                            class:offline={!user.connected && browser}
+                        >
+                            <span class="player-name">{user.name}</span>
+                            ({user.ping}ms)
+                        </div>
+                    {/each}
                 </section>
             {/if}
             {#if game.state == GameState.Finished}
                 <p transition:slide|local>Leaderboard</p>
             {:else}
                 <div transition:slide|local>
-                    <Editor
+                    <MultiplayerEditor
                         {passage}
-                        editable={game.state === GameState.Playing}
-                        startTime={game.startTime}
-                        selfStart={false}
+                        startTime={game.state === GameState.Playing
+                            ? new Date(game.startTime)
+                            : undefined}
                         {position}
                         otherCursors={otherUsers}
                         on:input={onInput}
@@ -182,13 +196,13 @@ async function startGame() {
     background-color: rgba(0, 0, 0, 0.5);
     backdrop-filter: saturate(180%) blur(5px);
 }
-span.player {
-    margin-right: 5px;
+.player-name {
+    font-size: 1.5rem;
 }
-span.me {
+.me .player-name {
     color: green;
 }
-span.offline {
+.player.offline {
     text-decoration: line-through;
     color: rgb(163, 163, 163);
 }
@@ -203,6 +217,14 @@ h1 {
 .select-wrapper.extend {
     width: 100vw;
     margin-left: calc(-1 * calc(calc(100vw - 90ch) / 2));
+}
+.multiplayer-bar {
+    min-height: 75px;
+    display: flex;
+    flex-flow: row nowrap;
+    gap: 10px;
+    padding-block: 1em;
+    align-items: center;
 }
 .passages {
     display: flex;

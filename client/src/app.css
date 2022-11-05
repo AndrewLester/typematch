@@ -49,3 +49,19 @@ a.button {
 dialog > h1 {
     text-align: center;
 }
+
+input {
+    appearance: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    border: 1px solid white;
+    padding: 0.25em 0.5em;
+    color: white;
+    background-color: rgb(45, 45, 45);
+}
+input::placeholder {
+    color: rgb(196, 196, 196);
+}
+input:focus {
+    outline: 1px solid red;
+}

@@ -1,118 +1,104 @@
-type Environment = {
-    GAME_DO: DurableObjectNamespace;
-};
+import { withDurables } from 'itty-durable';
+import { RequestLike, Router } from 'itty-router';
+import { withCORS, wrapCORS } from './cors';
+import { Environment } from './env';
+import { generateCode } from './game';
+import { withSession } from './session';
 
 export { GameDurableObject } from './durable-object';
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,HEAD,POST,OPTIONS',
-    'Access-Control-Max-Age': '86400',
+const router = Router();
+const gameRouter = Router({ base: '/game' });
+
+function getDurableSession(request: RequestLike) {
+	const getSession = async (sessionId: string) => {
+		const res = await request.GameDurableObject.getSession(sessionId);
+		if (res.status >= 400) return null;
+		return res.json();
+	};
+
+	return getSession;
+}
+
+const withGameDurable = (request: RequestLike) => {
+	request.GameDurableObject = request.GameDurableObject.get(
+		request.params.code,
+	);
 };
 
-function handleOptions(request) {
-    // Make sure the necessary headers are present
-    // for this to be a valid pre-flight request
-    let headers = request.headers;
-    if (
-        headers.get('Origin') !== null &&
-        headers.get('Access-Control-Request-Method') !== null &&
-        headers.get('Access-Control-Request-Headers') !== null
-    ) {
-        // Handle CORS pre-flight request.
-        // If you want to check or reject the requested method + headers
-        // you can do that here.
-        let respHeaders = {
-            ...corsHeaders,
-            // Allow all future content Request headers to go back to browser
-            // such as Authorization (Bearer) or X-Client-Name-Version
-            'Access-Control-Allow-Headers': request.headers.get(
-                'Access-Control-Request-Headers'
-            ),
-        };
+const withGameSession = withSession({
+	getSession: getDurableSession,
+});
 
-        return new Response(null, {
-            headers: respHeaders,
-        });
-    } else {
-        // Handle standard OPTIONS request.
-        // If you want to allow other HTTP Methods, you can do that here.
-        return new Response(null, {
-            headers: {
-                Allow: 'GET, HEAD, POST, OPTIONS',
-            },
-        });
-    }
-}
+router
+	.all('/game/*', gameRouter.handle)
+	.all('*', () => new Response(null, { status: 404 }));
 
-function generateCode() {
-    return Math.random().toString(36).slice(2, 7);
-}
+gameRouter
+	.all('*', (request, env) =>
+		withCORS({ allowOrigin: env.FRONTEND_URL })(request),
+	)
+	.all('*', withDurables())
+	.post('/create', (_, env) => {
+		const code = generateCode();
+		return new Response(`${env.FRONTEND_URL}/game/${code}`, {
+			status: 200,
+		});
+	})
+	.all('/:code*', withGameDurable)
+	.all(
+		'/:code*',
+		withSession({
+			required: false,
+			getSession: getDurableSession,
+		}),
+	)
+	.get('/:code', ({ GameDurableObject }) => GameDurableObject.getGame())
+	.get(
+		'/:code/me',
+		withGameSession,
+		({ session }) => new Response(JSON.stringify(session)),
+	)
+	.get(
+		'/:code/connect',
+		withSession({
+			required: false,
+			getSession: getDurableSession,
+		}),
+		(request, env) => {
+			if (request.headers.get('upgrade') !== 'websocket') {
+				return new Response('Upgrade header not set to websocket', {
+					status: 400,
+				});
+			}
 
-function getDurableObject(env: Environment, code: string) {
-    const durableObjectId = env.GAME_DO.idFromName(code);
-    const durableObjectStub = env.GAME_DO.get(durableObjectId);
-    return durableObjectStub;
-}
+			return request.GameDurableObject.connect(
+				request.query.name,
+				request,
+				env,
+			);
+		},
+	)
+	.post('/:code/start', withGameSession, ({ session, GameDurableObject }) =>
+		GameDurableObject.attemptStart(session),
+	)
+	.post('/:code/passage', withGameSession, async (request) =>
+		request.GameDurableObject.attemptSetPassage(
+			request.session,
+			Number(await request.text()),
+		),
+	)
+	.all('*', () => new Response(null, { status: 404 }));
 
 const worker: ExportedHandler<Environment> = {
-    async fetch(request, env) {
-        const url = new URL(request.url);
-
-        if (request.method === 'OPTIONS') {
-            return handleOptions(request);
-        }
-
-        if (request.method === 'POST') {
-            if (url.pathname === '/create') {
-                const code = generateCode();
-                return new Response(null, {
-                    status: 302,
-                    headers: {
-                        location: `http://localhost:3000/game/${code}`,
-                        ...corsHeaders,
-                    },
-                });
-            } else if (url.pathname.startsWith('/game')) {
-                const [_, code] = url.pathname.match(/\/game\/([\w\d]+).*/);
-                await getDurableObject(env, code).fetch(request);
-                return new Response(null, {
-                    status: 200,
-                    headers: corsHeaders,
-                });
-            } else {
-                return new Response(null, { status: 404 });
-            }
-        }
-
-        if (request.method === 'GET') {
-            if (url.pathname.startsWith('/connect/')) {
-                if (request.headers.get('upgrade') !== 'websocket') {
-                    return new Response('Upgrade header not set to websocket', {
-                        status: 400,
-                    });
-                }
-
-                const [_, code] = url.pathname.match(/\/connect\/([\w\d]+)/i);
-                return getDurableObject(env, code).fetch(request);
-            }
-
-            if (url.pathname.startsWith('/game/')) {
-                const [_, code] = url.pathname.match(/\/game\/([\w\d]+).*/);
-                const data = await getDurableObject(env, code)
-                    .fetch(request)
-                    .then((res) => res.text());
-                return new Response(data, {
-                    status: 200,
-                    headers: corsHeaders,
-                });
-            }
-        }
-
-        return new Response(null, {
-            status: 404,
-        });
-    },
+	fetch: (request, env, context) =>
+		router
+			.handle(request, env, context)
+			.catch((e) => {
+				console.log(e);
+				return new Response(null, { status: 500 });
+			})
+			.then(wrapCORS({ allowOrigin: env.FRONTEND_URL })),
 };
 
 export default worker;

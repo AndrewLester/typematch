@@ -1,5 +1,6 @@
 <script lang="ts">
 import { timerTimeFormat } from '$lib/format';
+import { isNonLetterKey } from '$lib/keyboard';
 import { passages, splitPassage } from '$lib/passages';
 import { time } from '$lib/stores';
 import { lcp } from '$lib/string';
@@ -8,25 +9,18 @@ import { createEventDispatcher } from 'svelte';
 import { fade, slide } from 'svelte/transition';
 
 export let passage: string | undefined = undefined;
-export let editable = true;
+export let startTime: Date | undefined = undefined;
 export let otherCursors: User[] = [];
 export let position: number = 0;
+export let canRestart = false;
 
-const dispatch = createEventDispatcher<{ input: string }>();
+const dispatch = createEventDispatcher<{
+    input: string;
+    restart: undefined;
+    keydown: KeyboardEvent;
+}>();
 
-const moods = {
-    20: '😬',
-    40: '🥱',
-    60: '😑',
-    80: '😒',
-    100: '😌',
-    120: '😯',
-    140: '😃',
-    [Number.MAX_SAFE_INTEGER]: '🤩',
-};
-let mood = moods[20];
 let input: HTMLTextAreaElement | undefined;
-let start: Date | undefined;
 let elapsed = 0;
 
 let currentSectionNumber = 0;
@@ -41,14 +35,13 @@ let prevWordsTyped = 0;
 
 const getCurrentWordsTyped = () => wordsTyped;
 
+$: started = startTime !== undefined;
+$: editable = started && !done;
 $: passageSections = passage ? splitPassage(passage) : [];
 $: currentSection = passageSections[currentSectionNumber];
 
-$: if ((!done && selfStart && editable) || (!selfStart && editable)) {
-    elapsed = start ? $time.getTime() - start.getTime() : 0;
-}
-$: if (!selfStart && editable && startTime) {
-    start = new Date(startTime);
+$: if (editable) {
+    elapsed = $time.getTime() - startTime!.getTime();
 }
 $: if (elapsed) {
     prevWordsTyped = getCurrentWordsTyped();
@@ -62,18 +55,12 @@ $: cursorMap = otherCursors.reduce(
     (obj, user) => ((obj[user.position] = user), obj),
     {} as Record<number, User>,
 );
-$: for (const [cutoff, emoji] of Object.entries(moods)) {
-    if (smoothWPM <= parseInt(cutoff)) {
-        mood = emoji;
-        break;
-    }
-}
 $: firstPosition = position;
 $: if (position > 0 && !firstPosition) {
     firstPosition = position;
 }
 let loadedFirstPosition = false;
-$: if (!selfStart && editable && !loadedFirstPosition && input !== undefined) {
+$: if (started && !loadedFirstPosition && input !== undefined) {
     if (firstPosition >= (passage?.length ?? 0)) {
         done = true;
         currentSectionNumber = passageSections.length;
@@ -118,11 +105,13 @@ $: sectionViewEnd = done
       );
 
 function handleKeyDown(e: KeyboardEvent) {
-    if (done || !editable || !loadedFirstPosition) {
+    if (e.ctrlKey || e.metaKey) {
         return;
     }
 
-    if (e.ctrlKey || e.metaKey) {
+    dispatch('keydown', e);
+
+    if (!editable || !loadedFirstPosition) {
         return;
     }
 
@@ -146,20 +135,7 @@ function handleKeyDown(e: KeyboardEvent) {
                 passage!,
             ),
         );
-    } else if (
-        ![
-            'Shift',
-            'Alt',
-            'Meta',
-            'Control',
-            'Tab',
-            'CapsLock',
-            'ArrowRight',
-            'ArrowUp',
-            'ArrowLeft',
-            'ArrowDown',
-        ].includes(e.key)
-    ) {
+    } else if (!isNonLetterKey(e.key)) {
         if (e.key === 'Enter') {
             text += '↩';
         } else if (e.key === '>') {
@@ -167,10 +143,6 @@ function handleKeyDown(e: KeyboardEvent) {
             input!.value += currentSection.slice(common_prefix.length);
         } else {
             text += e.key;
-
-            if (start === undefined) {
-                start = new Date();
-            }
         }
         dispatch('input', lcp(input?.value + e.key, passage!));
     }
@@ -190,7 +162,6 @@ function calculateCorrectWordsTyped(str?: string) {
 }
 
 function restart() {
-    start = undefined;
     elapsed = 0;
     currentSectionNumber = 0;
     text = '';
@@ -200,22 +171,20 @@ function restart() {
     smoothWPM = 0;
     wordsTyped = 0;
     prevWordsTyped = 0;
-    passage = passages[Math.trunc(Math.random() * passages.length)];
     done = false;
     input!.value = '';
+    dispatch('restart');
 }
 </script>
 
 <section>
     <h3>
-        <span class="time">{start ? timerTimeFormat(elapsed) : '0:00'}</span>
-        {#if !start && !selfStart}
-            Waiting to start...
+        <span class="time">{startTime ? timerTimeFormat(elapsed) : '0:00'}</span
+        >
+        {#if !started}
+            <slot name="waiting">Waiting to start...</slot>
         {/if}
-        {#if !start && selfStart}
-            Ready? Begin typing
-        {/if}
-        {#if done && selfStart}
+        {#if done && canRestart}
             <button class="restart" in:slide on:click={restart}
                 >Click to restart</button
             >
@@ -223,7 +192,6 @@ function restart() {
     </h3>
     <h4>
         WPM: {smoothWPM.toFixed(0)}, Peak: {peakWPM.toFixed(0) || 'Unknown'}
-        <span class="mood">{smoothWPM > 5 ? mood : ''}</span>
     </h4>
 
     {#if passage}
@@ -374,9 +342,6 @@ div.editor {
 div.editor p,
 div.editor pre {
     color: white;
-}
-.mood {
-    font-family: 'Noto Color Emoji', sans-serif;
 }
 div.wrapper {
     position: relative;

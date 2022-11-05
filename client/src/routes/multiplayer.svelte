@@ -5,18 +5,19 @@ import { fade, slide } from 'svelte/transition';
 
 async function createGame(e: SubmitEvent) {
     e.preventDefault();
-    const res = await fetch('http://localhost:8787/create', {
+    const data = await fetch('http://localhost:8787/game/create', {
         method: 'POST',
-    });
+        redirect: 'manual',
+    }).then((res) => res.text());
     const formData = new FormData(e.target as HTMLFormElement);
     const name = formData.get('name');
     if (name) {
         preferences.set({
             name: name.toString(),
-            userId: crypto.randomUUID(),
         });
     }
-    goto(res.url);
+
+    goto(data);
 }
 </script>
 

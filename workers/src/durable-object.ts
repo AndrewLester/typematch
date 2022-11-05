@@ -1,272 +1,310 @@
+import { createDurable } from 'itty-durable';
+import { RequestLike } from 'itty-router';
+import { Environment } from './env';
+import { signAndSerializeSessionId } from './session';
+
 interface User {
-    id: string;
-    name: string;
-    city: string | undefined;
-    country: string;
-    webSocket: WebSocket;
-    ping: number;
-    position: number;
-    connected: boolean;
-    admin: boolean;
+	id: string;
+	name: string;
+	city: string | undefined;
+	country: string;
+	webSocket: WebSocket;
+	ping: number;
+	position: number;
+	connected: boolean;
+	admin: boolean;
+}
+
+interface SafeUser extends User {
+	webSocket: undefined;
+	city: undefined;
 }
 
 const enum GameState {
-    Waiting,
-    Playing,
-    Finished,
+	Waiting,
+	Playing,
+	Finished,
 }
 
 type Message =
-    | Message.Ping
-    | Message.Pong
-    | Message.IncomingPosition
-    | Message.OutgoingPositions;
+	| Message.Ping
+	| Message.Pong
+	| Message.IncomingPosition
+	| Message.OutgoingPositions;
 
 namespace Message {
-    export type Ping = {
-        type: 'ping';
-        data: {
-            id: string;
-            lastPingMs: number;
-        };
-    };
+	export type Ping = {
+		type: 'ping';
+		data: {
+			id: string;
+			lastPingMs: number;
+		};
+	};
 
-    export type Pong = {
-        type: 'pong';
-        data: {
-            id: string;
-            time: number;
-            dolocation: string;
-            users: Array<User & { ping: number; webSocket: undefined }>;
-        };
-    };
+	export type Pong = {
+		type: 'pong';
+		data: {
+			id: string;
+			time: number;
+		};
+	};
 
-    export type IncomingPosition = {
-        type: 'update-position';
-        data: number;
-    };
+	export type IncomingPosition = {
+		type: 'update-position';
+		data: number;
+	};
 
-    export type OutgoingPositions = {
-        type: 'positions';
-        data: Map<User['id'], number>;
-    };
+	export type OutgoingPositions = {
+		type: 'positions';
+		data: Map<SafeUser['id'], number>;
+	};
 }
 
-// every 10 seconds
-const healthCheckInterval = 10e3;
+const healthCheckInterval = 10000;
 
 export interface MultiplayerGame {
-    state: GameState;
-    startTime: number | undefined;
-    users: Record<string, User>;
-    passageIndex: number;
+	state: GameState;
+	startTime: number | undefined;
+	users: Record<string, User>;
+	passageIndex: number;
 }
 
-export class GameDurableObject {
-    game: MultiplayerGame;
-    storage: DurableObjectStorage;
-    dolocation: string;
+export class GameDurableObject extends createDurable() {
+	game: MultiplayerGame;
+	dolocation: string;
 
-    constructor(state: DurableObjectState) {
-        this.storage = state.storage;
-        this.dolocation = '';
-        this.game = {
-            users: {},
-            startTime: undefined,
-            state: GameState.Waiting,
-            passageIndex: -1,
-        };
+	constructor(state: DurableObjectState) {
+		super(state);
 
-        this.scheduleNextAlarm(this.storage);
-        this.getDurableObjectLocation();
-    }
+		this.dolocation = '';
+		this.game = {
+			users: {},
+			startTime: undefined,
+			state: GameState.Waiting,
+			passageIndex: -1,
+		};
 
-    async fetch(request: Request) {
-        const { pathname } = new URL(request.url);
+		this.scheduleNextAlarm();
+		this.getDurableObjectLocation();
+	}
 
-        if (pathname.endsWith('/passage')) {
-            if (this.game.passageIndex !== -1)
-                return new Response(null, { status: 400 });
-            const text = await request.text();
-            this.game.passageIndex = parseInt(text);
-            this.sendGame();
-            return new Response(null, { status: 200 });
-        }
+	async connect(name: string, request: RequestLike, env: Environment) {
+		if ((name.length < 1 || name.length > 16) && !request.session) {
+			return new Response(
+				'Name length must be between 1 and 16 characters (inclusive)',
+				{ status: 400 },
+			);
+		}
 
-        if (pathname.startsWith('/game/') && request.method === 'GET') {
-            return new Response(JSON.stringify(this.getGame()), {
-                status: 200,
-            });
-        }
+		const pair = new WebSocketPair();
+		const [client, server] = Object.values(pair);
 
-        if (pathname.startsWith('/game/') && request.method === 'POST') {
-            this.game.state = GameState.Playing;
-            this.game.startTime = new Date().getTime();
-            this.sendGame();
-            return new Response(null, { status: 200 });
-        }
+		const user = await this.handleWebSocketSession(server, request, name);
 
-        let pair = new WebSocketPair();
-        const [client, server] = Object.values(pair);
+		let headers = {};
+		if (user.id !== request?.session?.id) {
+			const cookie = await signAndSerializeSessionId(
+				user.id,
+				env.SESSION_SECRET,
+				env.WORKER_ENV !== 'development',
+				env.WORKER_ENV !== 'development' ? env.WORKER_HOST : undefined,
+			);
 
-        await this.handleWebSocketSession(server, request);
+			headers = {
+				'Set-Cookie': cookie,
+			};
+		}
 
-        return new Response(null, { status: 101, webSocket: client });
-    }
+		const response = new Response(null, {
+			status: 101,
+			webSocket: client,
+			headers,
+		});
+		return response;
+	}
 
-    async handleWebSocketSession(webSocket: WebSocket, request: Request) {
-        webSocket.accept();
+	async attemptStart(session: User) {
+		if (!session.admin) {
+			return new Response(null, { status: 403 });
+		}
 
-        const metadata = request.cf;
-        const submission = new URL(request.url).searchParams;
-        const userId = submission.get('userId');
+		this.game.state = GameState.Playing;
+		this.game.startTime = new Date().getTime();
+		this.sendGame();
+		return 'Success';
+	}
 
-        if (
-            !this.game.users[userId] ||
-            Object.keys(this.game.users).length === 0
-        ) {
-            this.game.users[userId] = {
-                id: userId,
-                name: submission.get('name'),
-                city: metadata.city,
-                country: metadata.country,
-                webSocket: webSocket,
-                ping: 0,
-                position: 0,
-                connected: true,
-                admin: Object.keys(this.game.users).length === 0,
-            };
-        }
+	attemptSetPassage(session: User, index: number) {
+		if (!session.admin) {
+			return new Response(null, { status: 403 });
+		}
 
-        this.game.users[userId].connected = true;
-        this.game.users[userId].webSocket = webSocket;
+		if (this.game.passageIndex !== -1)
+			return new Response(null, { status: 400 });
 
-        this.sendGame();
+		this.game.passageIndex = index;
+		this.sendGame();
+		return 'Success';
+	}
 
-        webSocket.addEventListener('message', async (msg) => {
-            try {
-                // Parse the incoming message
-                let incomingMessage = JSON.parse(
-                    msg.data.toString()
-                ) as Message;
+	async handleWebSocketSession(
+		webSocket: WebSocket,
+		request: RequestLike,
+		name: string,
+	) {
+		webSocket.accept();
 
-                switch (incomingMessage.type) {
-                    case 'ping':
-                        const lastPingMs = incomingMessage.data.lastPingMs;
+		const metadata = request.cf;
+		let user = request?.session;
 
-                        const msg: Message.Pong = {
-                            type: 'pong',
-                            data: {
-                                id: incomingMessage.data.id,
-                                time: Date.now(),
-                                dolocation: this.dolocation,
-                                users: Object.values(this.game.users).map(
-                                    (user) => {
-                                        // update user's ping
-                                        if (
-                                            lastPingMs &&
-                                            user.webSocket === webSocket
-                                        ) {
-                                            user.ping = lastPingMs;
-                                        }
+		if (!user) {
+			user = {
+				id: crypto.randomUUID(),
+				name,
+				city: metadata.city,
+				country: metadata.country,
+				webSocket: webSocket,
+				ping: 0,
+				position: 0,
+				connected: true,
+				admin: Object.keys(this.game.users).length === 0,
+			};
 
-                                        return {
-                                            ...user,
-                                            ping: user.ping,
-                                            webSocket: undefined,
-                                        };
-                                    }
-                                ),
-                            },
-                        };
-                        webSocket.send(JSON.stringify([msg]));
-                        break;
-                    case 'update-position':
-                        this.game.users[userId] = {
-                            ...this.game.users[userId],
-                            position: incomingMessage.data,
-                        };
+			this.game.users[user.id] = user;
+		}
 
-                        this.sendGame();
-                        break;
-                }
-            } catch (err) {
-                // Report any exceptions directly back to the client. As with our handleErrors() this
-                // probably isn't what you'd want to do in production, but it's convenient when testing.
-                webSocket.send(JSON.stringify({ error: err.stack }));
-            }
-        });
+		this.game.users[user.id] = {
+			...user,
+			connected: true,
+			webSocket: webSocket,
+		};
 
-        const closeOrErrorHandler = () => {
-            this.game.users[userId].connected = false;
-            this.sendGame();
-        };
-        webSocket.addEventListener('close', closeOrErrorHandler);
-        webSocket.addEventListener('error', closeOrErrorHandler);
-    }
+		this.sendGame();
 
-    getGame() {
-        const users = {} as Record<string, User>;
-        for (const [_, user] of Object.entries(this.game.users)) {
-            users[user.id] = {
-                ...user,
-                webSocket: undefined,
-                city: undefined,
-            };
-        }
+		webSocket.addEventListener('message', async (msg) => {
+			try {
+				const incomingMessage = JSON.parse(
+					msg.data.toString(),
+				) as Message;
 
-        return {
-            ...this.game,
-            users,
-        };
-    }
+				const user = this.getUserByConnection(webSocket);
 
-    sendGame() {
-        const game = this.getGame();
+				switch (incomingMessage.type) {
+					case 'ping':
+						const lastPingMs = incomingMessage.data.lastPingMs;
 
-        this.broadcast(
-            JSON.stringify({
-                type: 'game',
-                data: game,
-            })
-        );
-    }
+						if (lastPingMs) {
+							user.ping = lastPingMs;
+						}
 
-    // broadcast() broadcasts a message to all clients.
-    broadcast(message: string, exclude: Set<User['id']> = new Set()) {
-        // Iterate over all the sessions sending them messages.
-        Object.entries(this.game.users)
-            .filter(([_, user]) => !exclude.has(user.id) && user.connected)
-            .forEach(([key, user]) => {
-                try {
-                    user.webSocket.send(message);
-                } catch (err) {
-                    this.game.users[key].connected = false;
-                }
-            });
-    }
+						const msg: Message.Pong = {
+							type: 'pong',
+							data: {
+								id: incomingMessage.data.id,
+								time: Date.now(),
+							},
+						};
+						webSocket.send(JSON.stringify(msg));
+						this.sendGame();
+						break;
+					case 'update-position':
+						this.game.users[user.id] = {
+							...this.game.users[user.id],
+							position: incomingMessage.data,
+						};
 
-    async getDurableObjectLocation() {
-        const res = await fetch('https://workers.cloudflare.com/cf.json');
-        const json = (await res.json()) as IncomingRequestCfProperties;
-        this.dolocation = `${json.city} (${json.country})`;
-    }
+						this.sendGame();
+						break;
+				}
+			} catch (err) {
+				// Report any exceptions directly back to the client. As with our handleErrors() this
+				// probably isn't what you'd want to do in production, but it's convenient when testing.
+				webSocket.send(JSON.stringify({ error: err.stack }));
+			}
+		});
 
-    scheduleNextAlarm(storage: DurableObjectStorage) {
-        try {
-            const alarmTime = Date.now() + healthCheckInterval;
-            storage.setAlarm(alarmTime);
-        } catch {
-            console.log(
-                'Durable Objects Alarms not supported in Miniflare (--local mode) yet.'
-            );
-        }
-    }
+		const closeOrErrorHandler = () => {
+			user.connected = false;
+			this.sendGame();
+		};
+		webSocket.addEventListener('close', closeOrErrorHandler);
+		webSocket.addEventListener('error', closeOrErrorHandler);
 
-    alarm() {
-        this.sendGame();
+		return user;
+	}
 
-        if (Object.keys(this.game.users).length > 0)
-            this.scheduleNextAlarm(this.storage);
-    }
+	getGame() {
+		const users = {} as Record<string, SafeUser>;
+		for (const [_, user] of Object.entries(this.game.users)) {
+			users[user.id] = {
+				...user,
+				webSocket: undefined,
+				city: undefined,
+			};
+		}
+
+		return {
+			...this.game,
+			users,
+		};
+	}
+
+	sendGame() {
+		const game = this.getGame();
+
+		this.broadcast(
+			JSON.stringify({
+				type: 'game',
+				data: game,
+			}),
+		);
+	}
+
+	// broadcast() broadcasts a message to all clients.
+	broadcast(message: string, exclude: Set<User['id']> = new Set()) {
+		// Iterate over all the sessions sending them messages.
+		Object.entries(this.game.users)
+			.filter(([_, user]) => !exclude.has(user.id) && user.connected)
+			.forEach(([key, user]) => {
+				try {
+					user.webSocket.send(message);
+				} catch (err) {
+					this.game.users[key].connected = false;
+				}
+			});
+	}
+
+	async getDurableObjectLocation() {
+		const res = await fetch('https://workers.cloudflare.com/cf.json');
+		const json = (await res.json()) as IncomingRequestCfProperties;
+		this.dolocation = `${json.city} (${json.country})`;
+	}
+
+	getSession(sessionId: string) {
+		const user = this.game.users[sessionId];
+		return user;
+	}
+
+	getUserByConnection(socket: WebSocket) {
+		return Object.values(this.game.users).find(
+			({ webSocket }) => webSocket === socket,
+		);
+	}
+
+	scheduleNextAlarm() {
+		try {
+			const alarmTime = Date.now() + healthCheckInterval;
+			this.setAlarm(alarmTime);
+		} catch {
+			console.log(
+				'Durable Objects Alarms not supported in Miniflare (--local mode) yet.',
+			);
+		}
+	}
+
+	alarm() {
+		this.sendGame();
+
+		if (Object.keys(this.game.users).length > 0) this.scheduleNextAlarm();
+	}
 }

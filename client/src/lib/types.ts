@@ -1,9 +1,7 @@
 export interface User {
     id: string;
     name: string;
-    city: string | undefined;
     country: string;
-    webSocket: WebSocket;
     ping: number;
     position: number;
     connected: boolean;
