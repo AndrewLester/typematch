@@ -4,6 +4,10 @@ compatibility_date = "2022-05-10"
 
 compatibility_flags = ["durable_object_alarms"]
 
+routes = [
+	{ pattern = "multiplayer.typematch.win", custom_domain = true, zone_name = "typematch.win" }
+]
+
 [vars]
 FRONTEND_URL = "http://localhost:3000"
 SESSION_SECRET = "e76c780843942960880db4a2bc7e50c8"

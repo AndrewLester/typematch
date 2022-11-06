@@ -14,7 +14,7 @@ import '../app.css';
     </svg>
 </a>
 
-<main>
+<main data-sveltekit-prefetch>
     <slot />
 </main>
 
