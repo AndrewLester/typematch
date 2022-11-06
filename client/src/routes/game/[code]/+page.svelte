@@ -17,10 +17,10 @@ export let data: PageData;
 let joinModal: HTMLDialogElement | undefined;
 let inGameModal: HTMLDialogElement | undefined;
 let extend = false;
-let gameStore: ReturnType<typeof multiplayerWSStore>;
+let gameStore: ReturnType<typeof multiplayerWSStore> | undefined;
 $: userCount = Object.values(data.game?.users).length;
 // Not sure why but sometimes $page.params.code is undefined
-$: if ($preferences?.name && $page.params.code) {
+$: if ($preferences?.name && $page.params.code && !gameStore) {
     gameStore = multiplayerWSStore(
         `ws${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
             $page.params.code
@@ -34,7 +34,7 @@ $: if (!data.me && userCount > 0 && browser) {
         }/me`,
     );
 }
-$: console.log(data.game?.users, data.me);
+
 $: if ($gameStore) data.game = $gameStore;
 $: otherUsers = data.game?.users
     ? Object.values(data.game?.users).filter((user) => user.id !== data.me?.id)

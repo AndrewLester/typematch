@@ -88,6 +88,19 @@ export class GameDurableObject extends createDurable() {
 		this.getDurableObjectLocation();
 	}
 
+	fetch(request, ...args) {
+		if (request.method === 'GET' && request.url.endsWith('connect')) {
+			return this.connect(
+				...(JSON.parse(request.headers.get('content')) as [
+					string,
+					RequestLike,
+					Environment,
+				]),
+			);
+		}
+		return super.fetch(request, ...args);
+	}
+
 	async connect(name: string, request: RequestLike, env: Environment) {
 		if ((name.length < 1 || name.length > 16) && !request.session) {
 			return new Response(
@@ -115,12 +128,11 @@ export class GameDurableObject extends createDurable() {
 			};
 		}
 
-		const response = new Response(null, {
+		return new Response(null, {
 			status: 101,
 			webSocket: client,
 			headers,
 		});
-		return response;
 	}
 
 	async attemptStart(session: User) {
@@ -161,8 +173,8 @@ export class GameDurableObject extends createDurable() {
 			user = {
 				id: crypto.randomUUID(),
 				name,
-				city: metadata.city,
-				country: metadata.country,
+				city: metadata?.city,
+				country: metadata?.country,
 				webSocket: webSocket,
 				ping: 0,
 				position: 0,
@@ -276,8 +288,10 @@ export class GameDurableObject extends createDurable() {
 
 	async getDurableObjectLocation() {
 		const res = await fetch('https://workers.cloudflare.com/cf.json');
-		const json = (await res.json()) as IncomingRequestCfProperties;
-		this.dolocation = `${json.city} (${json.country})`;
+		const json =
+			(await res.json()) as IncomingRequestCfPropertiesGeographicInformation;
+		this.dolocation =
+			'city' in json ? `${json.city} (${json.country})` : 'No location';
 	}
 
 	getSession(sessionId: string) {
