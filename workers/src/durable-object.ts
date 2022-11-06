@@ -329,7 +329,11 @@ export class GameDurableObject extends createDurable() {
 			this.game.startTime = Date.now();
 		}
 
-		if (Object.keys(this.game.users).length > 0) {
+		if (
+			Object.keys(this.game.users).filter(
+				(id) => this.game.users[id].connected,
+			).length > 0
+		) {
 			this.scheduleNextAlarm();
 		}
 
