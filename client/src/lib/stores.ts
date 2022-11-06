@@ -4,13 +4,12 @@ import { readable, writable } from 'svelte/store';
 import { sleep } from './async';
 import type { MultiplayerGame } from './types';
 
-/**
- * Stores current time. Updates every second.
- */
-export const time = readable(new Date(), (set) => {
-    const interval = setInterval(() => set(new Date()), 1000);
-    return () => clearInterval(interval);
-});
+export const clock = (interval: number) =>
+    readable(new Date(), (set) => {
+        const intervalId = setInterval(() => set(new Date()), interval);
+        return () => clearInterval(intervalId);
+    });
+export const time = clock(1000);
 
 export function multiplayerWSStore(webSocketURL: string) {
     let socket: WebSocket | undefined;

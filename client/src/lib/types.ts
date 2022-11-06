@@ -10,13 +10,17 @@ export interface User {
 
 export const enum GameState {
     Waiting,
+    Countdown,
     Playing,
     Finished,
 }
 
+export const countdownTime = 3000;
+
 export interface MultiplayerGame {
     state: GameState;
     startTime: number;
+    countdownTime: number;
     users: Record<string, User>;
     passageIndex: number;
 }
