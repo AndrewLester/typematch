@@ -18,7 +18,7 @@ let joinModal: HTMLDialogElement | undefined;
 let inGameModal: HTMLDialogElement | undefined;
 let extend = false;
 let gameStore: ReturnType<typeof multiplayerWSStore> | undefined;
-$: userCount = Object.values(data.game?.users).length;
+$: userCount = Object.values(data?.game?.users).length;
 // Not sure why but sometimes $page.params.code is undefined
 $: if ($preferences?.name && $page.params.code && !gameStore) {
     gameStore = multiplayerWSStore(
@@ -45,11 +45,11 @@ $: passage =
         : undefined;
 $: position = data.me?.position ?? 0;
 onMount(() => {
-    if (data.me) {
+    if (data?.me) {
         return;
     }
 
-    if (data.game.state !== GameState.Waiting) {
+    if (data?.game.state !== GameState.Waiting) {
         inGameModal?.showModal();
         return;
     }
@@ -145,14 +145,14 @@ function startGame() {
                     {/each}
                 </section>
             {/if}
-            {#if data.game.state == GameState.Finished}
+            {#if data?.game.state == GameState.Finished}
                 <p transition:slide|local>Leaderboard</p>
             {:else}
                 <div transition:slide|local>
                     <MultiplayerEditor
                         {passage}
-                        startTime={data.game.state === GameState.Playing
-                            ? new Date(data.game.startTime)
+                        startTime={data?.game.state === GameState.Playing
+                            ? new Date(data?.game.startTime)
                             : undefined}
                         {position}
                         otherCursors={otherUsers}
