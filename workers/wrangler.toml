@@ -13,7 +13,7 @@ routes = [
 SESSION_SECRET = "e76c780843942960880db4a2bc7e50c8"
 FRONTEND_URL = "http://localhost:3000"
 WORKER_ENV = "development"
-WORKER_HOST = 'localhost'
+WORKER_HOST = "localhost"
 
 [env.production.vars]
 FRONTEND_URL = "https://typematch.win"
