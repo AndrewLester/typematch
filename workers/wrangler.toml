@@ -8,9 +8,9 @@ routes = [
 	{ pattern = "multiplayer.typematch.win", custom_domain = true, zone_name = "typematch.win" }
 ]
 
-[vars]
-FRONTEND_URL = "http://localhost:3000"
+[env.local.vars]
 SESSION_SECRET = "e76c780843942960880db4a2bc7e50c8"
+FRONTEND_URL = "http://localhost:3000"
 WORKER_ENV = "development"
 WORKER_HOST = 'localhost'
 
