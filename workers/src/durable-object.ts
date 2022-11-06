@@ -313,8 +313,14 @@ export class GameDurableObject extends createDurable() {
 	}
 
 	scheduleNextAlarm() {
-		const alarmTime = Date.now() + healthCheckInterval;
-		this.setAlarm(alarmTime);
+		try {
+			const alarmTime = Date.now() + healthCheckInterval;
+			this.setAlarm(alarmTime);
+		} catch {
+			console.log(
+				'Durable Objects Alarms not supported in Miniflare (--local mode) yet.',
+			);
+		}
 	}
 
 	alarm() {
