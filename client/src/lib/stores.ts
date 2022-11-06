@@ -59,7 +59,6 @@ export function multiplayerWSStore(webSocketURL: string) {
                     }
                 });
                 socket.addEventListener('close', async () => {
-                    console.log('closed :(');
                     clearInterval(interval);
                     // attempt to reconnect
                     await sleep(delay);

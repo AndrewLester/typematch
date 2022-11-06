@@ -5,10 +5,10 @@ import { splitPassage } from '$lib/passages';
 import { time } from '$lib/stores';
 import { lcp } from '$lib/string';
 import type { User } from '$lib/types';
-import { createEventDispatcher } from 'svelte';
+import { createEventDispatcher, onMount } from 'svelte';
 import { fade, slide } from 'svelte/transition';
 
-export let passage: string | undefined = undefined;
+export let passage: string;
 export let startTime: Date | undefined = undefined;
 export let otherCursors: User[] = [];
 export let position: number = 0;
@@ -32,6 +32,8 @@ let wpm = 0;
 let smoothWPM = 0;
 let wordsTyped = 0;
 let prevWordsTyped = 0;
+let firstPosition: number | null = null;
+let loadedFirstPosition = false;
 
 const getCurrentWordsTyped = () => wordsTyped;
 
@@ -47,7 +49,7 @@ $: if (elapsed) {
     prevWordsTyped = getCurrentWordsTyped();
     wordsTyped = calculateCorrectWordsTyped();
 }
-$: if (elapsed) wpm = (wordsTyped - prevWordsTyped) / (1 / 60);
+$: if (elapsed) wpm = Math.max((wordsTyped - prevWordsTyped) / (1 / 60), 0);
 $: if (elapsed) smoothWPM = (5 * smoothWPM + wpm) / 6;
 $: peakWPM = smoothWPM > peakWPM ? smoothWPM : peakWPM;
 $: common_prefix = lcp(currentSection || '', text);
@@ -55,38 +57,38 @@ $: cursorMap = otherCursors.reduce(
     (obj, user) => ((obj[user.position] = user), obj),
     {} as Record<number, User>,
 );
-$: firstPosition = position;
-$: if (position > 0 && !firstPosition) {
+$: if (firstPosition === null) {
     firstPosition = position;
 }
-let loadedFirstPosition = false;
-$: if (started && !loadedFirstPosition && input !== undefined) {
+$: if (firstPosition !== null && !loadedFirstPosition && input !== undefined) {
     if (firstPosition >= (passage?.length ?? 0)) {
         done = true;
         currentSectionNumber = passageSections.length;
         text = '';
-    }
-    let total = '';
-    for (let i = 0; i < passageSections.length && !done; i++) {
-        const section = passageSections[i];
-        total += section;
-        if (firstPosition <= total.length) {
-            currentSectionNumber = i;
-            const typed = section.substring(
-                0,
-                firstPosition - (total.length - section.length),
-            );
-            text = typed;
-            const calculated = calculateCorrectWordsTyped(
-                total.substring(0, total.length - section.length) + typed,
-            );
-            prevWordsTyped = calculated;
-            wordsTyped = calculated;
-            input!.value += text;
-            break;
+    } else {
+        let total = '';
+        for (let i = 0; i < passageSections.length; i++) {
+            const section = passageSections[i];
+            total += section;
+            if (firstPosition <= total.length) {
+                currentSectionNumber = i;
+                const typed = section.substring(
+                    0,
+                    firstPosition - (total.length - section.length),
+                );
+                text = typed;
+                const calculated = calculateCorrectWordsTyped(
+                    total.substring(0, total.length - section.length) + typed,
+                );
+                prevWordsTyped = calculated;
+                wordsTyped = calculated;
+                input!.value += text;
+                break;
+            }
+            input!.value += section;
         }
-        input!.value += section;
     }
+
     loadedFirstPosition = true;
 }
 
@@ -109,9 +111,11 @@ function handleKeyDown(e: KeyboardEvent) {
         return;
     }
 
-    dispatch('keydown', e);
+    const shouldContinue = dispatch('keydown', e, { cancelable: true });
 
-    if (!editable || !loadedFirstPosition) {
+    if (!loadedFirstPosition || !shouldContinue) {
+        e.preventDefault();
+        e.stopPropagation();
         return;
     }
 
@@ -156,6 +160,10 @@ function handleKeyDown(e: KeyboardEvent) {
     lastTyped = $time.getTime();
 }
 
+onMount(() => {
+    setTimeout(() => input?.blur(), 50);
+});
+
 function calculateCorrectWordsTyped(str?: string) {
     const correctPrefix = lcp(str || input?.value || '', passage || '');
     return correctPrefix ? correctPrefix.length / 5 : 0;
@@ -177,6 +185,8 @@ function restart() {
 }
 </script>
 
+<svelte:body on:focus={() => input?.focus()} />
+
 <section>
     <h3>
         <span class="time">{startTime ? timerTimeFormat(elapsed) : '0:00'}</span
@@ -194,69 +204,64 @@ function restart() {
         WPM: {smoothWPM.toFixed(0)}, Peak: {peakWPM.toFixed(0) || 'Unknown'}
     </h4>
 
-    {#if passage}
-        <div
-            class="wrapper"
-            class:done
-            style="--current-section-number: {currentSectionNumber -
-                sectionViewStart};"
-            transition:slide|local
-        >
-            {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i + sectionViewStart)}
-                {@const sectionCharIndex = passage.indexOf(section)}
-                {@const sectionIndex = i + sectionViewStart}
-                <div transition:slide|local class="line">
-                    {#if currentSectionNumber === sectionIndex}
-                        <div class="editor" transition:slide|local>
-                            <p class="line">
-                                {#each section as letter, i}
-                                    <span
-                                        class="letter"
-                                        class:other-cursor={i >=
-                                            common_prefix.length &&
-                                            !!cursorMap[i + sectionCharIndex]}
-                                        data-user={cursorMap[
-                                            i + sectionCharIndex
-                                        ]?.name}
-                                        class:hidden={i <
-                                            common_prefix.length &&
-                                            letter !== ' '}>{letter}</span
-                                    >
-                                {/each}
-                            </p>
+    <div
+        class="wrapper"
+        class:done
+        style="--current-section-number: {currentSectionNumber -
+            sectionViewStart};"
+    >
+        {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i + sectionViewStart)}
+            {@const sectionCharIndex = passage.indexOf(section)}
+            {@const sectionIndex = i + sectionViewStart}
+            <div transition:slide|local class="line">
+                {#if currentSectionNumber === sectionIndex}
+                    <div class="editor" transition:slide|local>
+                        <p class="line">
+                            {#each section as letter, i}
+                                <span
+                                    class="letter"
+                                    class:other-cursor={i >=
+                                        common_prefix.length &&
+                                        !!cursorMap[i + sectionCharIndex]}
+                                    data-user={cursorMap[i + sectionCharIndex]
+                                        ?.name}
+                                    class:hidden={i < common_prefix.length &&
+                                        letter !== ' '}>{letter}</span
+                                >
+                            {/each}
+                        </p>
+                        <!-- prettier-ignore -->
+                        <pre>{#each common_prefix as letter, i}<span class="letter correct" class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name} in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
+                    </div>
+                {:else}
+                    <div transition:slide|local>
+                        <p class="line">
                             <!-- prettier-ignore -->
-                            <pre>{#each common_prefix as letter, i}<span class="letter correct" class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name} in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
-                        </div>
-                    {:else}
-                        <div transition:slide|local>
-                            <p class="line">
-                                <!-- prettier-ignore -->
-                                {#each section as character, i}<span class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name}>{character}</span>{/each}
-                            </p>
-                        </div>
-                    {/if}
-                </div>
-            {/each}
-            {#each otherCursors as cursor}
-                {#if cursor.position > (passage?.indexOf(passageSections[sectionViewEnd - 1]) ?? 20000) + (passageSections[sectionViewEnd - 1]?.length ?? 2000)}
-                    <p>{cursor.name} past</p>
-                {:else if cursor.position >= passage.length}
-                    <p>{cursor.name} done</p>
+                            {#each section as character, i}<span class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name}>{character}</span>{/each}
+                        </p>
+                    </div>
                 {/if}
-            {/each}
-        </div>
-        <!-- svelte-ignore a11y-autofocus -->
-        <textarea
-            bind:this={input}
-            autofocus
-            on:blur={() => input?.focus()}
-            on:keydown={handleKeyDown}
-            autocomplete="false"
-            autocapitalize="false"
-            autocorrect="false"
-            spellcheck="false"
-        />
-    {/if}
+            </div>
+        {/each}
+        {#each otherCursors as cursor}
+            {#if cursor.position > (passage?.indexOf(passageSections[sectionViewEnd - 1]) ?? 20000) + (passageSections[sectionViewEnd - 1]?.length ?? 2000)}
+                <p>{cursor.name} past</p>
+            {:else if cursor.position >= passage.length}
+                <p>{cursor.name} done</p>
+            {/if}
+        {/each}
+    </div>
+    <!-- svelte-ignore a11y-autofocus -->
+    <textarea
+        bind:this={input}
+        autofocus
+        on:blur={() => input?.focus()}
+        on:keydown={handleKeyDown}
+        autocomplete="false"
+        autocapitalize="false"
+        autocorrect="false"
+        spellcheck="false"
+    />
 </section>
 
 <style>
@@ -380,6 +385,7 @@ div.wrapper:not(.done)::before {
     border: none;
     cursor: pointer;
     text-decoration: underline;
+    padding: 0;
 }
 @keyframes fly {
     0% {

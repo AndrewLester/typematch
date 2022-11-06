@@ -13,7 +13,11 @@ let startTime: Date | undefined = undefined;
     {startTime}
     {passage}
     on:keydown={(e) => {
-        if (!isNonLetterKey(e.detail.key) && startTime === undefined) {
+        if (startTime !== undefined) {
+            return;
+        }
+
+        if (!isNonLetterKey(e.detail.key)) {
             startTime = new Date();
         }
     }}

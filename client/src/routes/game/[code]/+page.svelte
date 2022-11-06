@@ -165,19 +165,22 @@ function startGame() {
                 </section>
             {/if}
             {#if data?.game.state == GameState.Finished}
-                <p transition:slide|local>Leaderboard</p>
+                <p>Leaderboard</p>
             {:else}
-                <div transition:slide|local>
-                    <MultiplayerEditor
-                        {passage}
-                        startTime={data?.game.state === GameState.Playing
-                            ? new Date(data?.game.startTime)
-                            : undefined}
-                        {position}
-                        otherCursors={otherUsers}
-                        on:input={onInput}
-                    />
-                </div>
+                <MultiplayerEditor
+                    {passage}
+                    startTime={data?.game.state === GameState.Playing
+                        ? new Date(data?.game.startTime)
+                        : undefined}
+                    {position}
+                    on:keydown={(e) => {
+                        if (data?.game.state !== GameState.Playing) {
+                            e.preventDefault();
+                        }
+                    }}
+                    otherCursors={otherUsers}
+                    on:input={onInput}
+                />
             {/if}
         </div>
     {/if}
