@@ -2,10 +2,11 @@
 import { goto } from '$app/navigation';
 import { preferences } from '$lib/stores';
 import { fade, slide } from 'svelte/transition';
+import { PUBLIC_WORKER_HOST } from '$env/static/public';
 
 async function createGame(e: SubmitEvent) {
     e.preventDefault();
-    const data = await fetch('http://localhost:8787/game/create', {
+    const data = await fetch(`http://${PUBLIC_WORKER_HOST}/game/create`, {
         method: 'POST',
         redirect: 'manual',
     }).then((res) => res.text());

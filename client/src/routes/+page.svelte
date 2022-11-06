@@ -1,5 +1,5 @@
 <script lang="ts">
-import SingleplayerEditor from '../components/SingleplayerEditor.svelte';
+import SingleplayerEditor from '$lib/components/SingleplayerEditor.svelte';
 import type { PageData } from './$types';
 import { fade, slide } from 'svelte/transition';
 

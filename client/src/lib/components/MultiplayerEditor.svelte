@@ -1,7 +1,7 @@
 <script lang="ts">
 import { timerTimeFormat } from '$lib/format';
 import { isNonLetterKey } from '$lib/keyboard';
-import { passages, splitPassage } from '$lib/passages';
+import { splitPassage } from '$lib/passages';
 import { time } from '$lib/stores';
 import { lcp } from '$lib/string';
 import type { User } from '$lib/types';

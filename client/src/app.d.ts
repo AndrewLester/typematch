@@ -8,7 +8,3 @@ declare namespace App {
     // interface Session {}
     // interface Stuff {}
 }
-
-interface ImportMetaEnv {
-    VITE_GITHUB_ACCESS_TOKEN: string;
-}

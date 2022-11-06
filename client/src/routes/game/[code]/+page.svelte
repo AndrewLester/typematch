@@ -4,13 +4,14 @@ import { browser } from '$app/environment';
 import { invalidate } from '$app/navigation';
 
 import { page } from '$app/stores';
-import MultiplayerEditor from '$components/MultiplayerEditor.svelte';
+import MultiplayerEditor from '$lib/components/MultiplayerEditor.svelte';
 import { passages } from '$lib/passages';
 import { multiplayerWSStore, preferences } from '$lib/stores';
 import { GameState } from '$lib/types';
 import { onMount } from 'svelte';
 import { fade, slide } from 'svelte/transition';
 import type { PageData } from './$types';
+import { PUBLIC_WORKER_HOST } from '$env/static/public';
 
 export let data: PageData;
 let joinModal: HTMLDialogElement | undefined;
@@ -21,11 +22,11 @@ $: userCount = Object.values(data.game?.users).length;
 // Not sure why but sometimes $page.params.code is undefined
 $: if ($preferences?.name && $page.params.code) {
     gameStore = multiplayerWSStore(
-        `ws://localhost:8787/game/${$page.params.code}/connect?name=${$preferences?.name}`,
+        `ws://${PUBLIC_WORKER_HOST}/game/${$page.params.code}/connect?name=${$preferences?.name}`,
     );
 }
 $: if (!data.me && userCount > 0 && browser) {
-    invalidate(`http://localhost:8787/game/${$page.params.code}/me`);
+    invalidate(`http://${PUBLIC_WORKER_HOST}/game/${$page.params.code}/me`);
 }
 $: console.log(data.game?.users, data.me);
 $: if ($gameStore) data.game = $gameStore;
@@ -55,14 +56,17 @@ onMount(() => {
 async function selectPassage(passageIndex: number) {
     extend = false;
 
-    await fetch(`http://localhost:8787/game/${$page.params.code}/passage`, {
-        method: 'POST',
-        body: passageIndex.toString(),
-        headers: {
-            'Content-Type': 'text/plain',
+    await fetch(
+        `http://${PUBLIC_WORKER_HOST}/game/${$page.params.code}/passage`,
+        {
+            method: 'POST',
+            body: passageIndex.toString(),
+            headers: {
+                'Content-Type': 'text/plain',
+            },
+            credentials: 'include',
         },
-        credentials: 'include',
-    });
+    );
 
     passage = passages[passageIndex];
 }
@@ -82,7 +86,7 @@ function joinGame(e: SubmitEvent) {
 }
 
 function startGame() {
-    fetch(`http://localhost:8787/game/${$page.params.code}/start`, {
+    fetch(`http://${PUBLIC_WORKER_HOST}/game/${$page.params.code}/start`, {
         method: 'POST',
         credentials: 'include',
     });
