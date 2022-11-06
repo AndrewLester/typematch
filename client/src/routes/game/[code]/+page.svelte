@@ -1,5 +1,5 @@
 <script lang="ts">
-import { browser } from '$app/environment';
+import { browser, dev } from '$app/environment';
 
 import { invalidate } from '$app/navigation';
 
@@ -22,11 +22,17 @@ $: userCount = Object.values(data.game?.users).length;
 // Not sure why but sometimes $page.params.code is undefined
 $: if ($preferences?.name && $page.params.code) {
     gameStore = multiplayerWSStore(
-        `ws://${PUBLIC_WORKER_HOST}/game/${$page.params.code}/connect?name=${$preferences?.name}`,
+        `ws${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
+            $page.params.code
+        }/connect?name=${$preferences?.name}`,
     );
 }
 $: if (!data.me && userCount > 0 && browser) {
-    invalidate(`http://${PUBLIC_WORKER_HOST}/game/${$page.params.code}/me`);
+    invalidate(
+        `http${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
+            $page.params.code
+        }/me`,
+    );
 }
 $: console.log(data.game?.users, data.me);
 $: if ($gameStore) data.game = $gameStore;
@@ -57,7 +63,9 @@ async function selectPassage(passageIndex: number) {
     extend = false;
 
     await fetch(
-        `http://${PUBLIC_WORKER_HOST}/game/${$page.params.code}/passage`,
+        `http${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
+            $page.params.code
+        }/passage`,
         {
             method: 'POST',
             body: passageIndex.toString(),
@@ -86,10 +94,15 @@ function joinGame(e: SubmitEvent) {
 }
 
 function startGame() {
-    fetch(`http://${PUBLIC_WORKER_HOST}/game/${$page.params.code}/start`, {
-        method: 'POST',
-        credentials: 'include',
-    });
+    fetch(
+        `http${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
+            $page.params.code
+        }/start`,
+        {
+            method: 'POST',
+            credentials: 'include',
+        },
+    );
 }
 </script>
 

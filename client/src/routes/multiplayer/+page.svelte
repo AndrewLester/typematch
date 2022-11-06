@@ -3,13 +3,17 @@ import { goto } from '$app/navigation';
 import { preferences } from '$lib/stores';
 import { fade, slide } from 'svelte/transition';
 import { PUBLIC_WORKER_HOST } from '$env/static/public';
+import { dev } from '$app/environment';
 
 async function createGame(e: SubmitEvent) {
     e.preventDefault();
-    const data = await fetch(`http://${PUBLIC_WORKER_HOST}/game/create`, {
-        method: 'POST',
-        redirect: 'manual',
-    }).then((res) => res.text());
+    const data = await fetch(
+        `http${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/create`,
+        {
+            method: 'POST',
+            redirect: 'manual',
+        },
+    ).then((res) => res.text());
     const formData = new FormData(e.target as HTMLFormElement);
     const name = formData.get('name');
     if (name) {

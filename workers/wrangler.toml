@@ -27,6 +27,11 @@ bindings = [
   { name = "GameDurableObject", class_name = "GameDurableObject" },
 ]
 
+[env.production.durable_objects]
+bindings = [
+  { name = "GameDurableObject", class_name = "GameDurableObject" },
+]
+
 [[migrations]]
 tag = "v1"
 new_classes = ["WebSocketDurableObject"]

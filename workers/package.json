@@ -9,7 +9,7 @@
 	},
 	"scripts": {
 		"start": "wrangler dev src/index.ts --local --env local",
-		"deploy": "wrangler publish src/index.ts",
+		"deploy": "wrangler publish src/index.ts --env production",
 		"start-stackblitz": "WRANGLER_SEND_METRICS=false wrangler dev src/index.ts --local"
 	},
 	"dependencies": {
