@@ -56,7 +56,7 @@ export async function signAndSerializeSessionId(
 		domain,
 		secure,
 		sameSite: 'strict',
-		// httpOnly: true,
+		httpOnly: true,
 		path: '/',
 	});
 }
