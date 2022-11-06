@@ -1,7 +1,9 @@
 <script lang="ts">
 import SingleplayerEditor from '../components/SingleplayerEditor.svelte';
-
+import type { PageData } from './$types';
 import { fade, slide } from 'svelte/transition';
+
+export let data: PageData;
 </script>
 
 <svelte:head>
@@ -16,5 +18,5 @@ import { fade, slide } from 'svelte/transition';
 >
 
 <div in:slide={{ delay: 250 }} out:slide>
-    <SingleplayerEditor />
+    <SingleplayerEditor passage={data.passage} />
 </div>

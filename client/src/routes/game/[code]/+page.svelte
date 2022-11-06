@@ -1,66 +1,48 @@
-<script context="module" lang="ts">
-export const load: Load = async ({ params, fetch }) => {
-    const [game, me] = await Promise.all([
-        fetch(`http://localhost:8787/game/${params.code}`).then((res) =>
-            res.json(),
-        ),
-        fetch(`http://localhost:8787/game/${params.code}/me`, {
-            credentials: 'include',
-        }).then((res) => (res.status < 300 ? res.json() : null)),
-    ]);
-
-    return {
-        props: {
-            game,
-            me,
-        },
-    };
-};
-</script>
-
 <script lang="ts">
-import { browser } from '$app/env';
+import { browser } from '$app/environment';
+
 import { invalidate } from '$app/navigation';
 
 import { page } from '$app/stores';
 import MultiplayerEditor from '$components/MultiplayerEditor.svelte';
 import { passages } from '$lib/passages';
 import { multiplayerWSStore, preferences } from '$lib/stores';
-import { GameState, type MultiplayerGame, type User } from '$lib/types';
-import type { Load } from '@sveltejs/kit';
+import { GameState } from '$lib/types';
 import { onMount } from 'svelte';
 import { fade, slide } from 'svelte/transition';
+import type { PageData } from './$types';
 
-export let game: MultiplayerGame;
-export let me: User | null;
+export let data: PageData;
 let joinModal: HTMLDialogElement | undefined;
 let inGameModal: HTMLDialogElement | undefined;
 let extend = false;
 let gameStore: ReturnType<typeof multiplayerWSStore>;
-$: userCount = Object.values(game?.users).length;
+$: userCount = Object.values(data.game?.users).length;
 // Not sure why but sometimes $page.params.code is undefined
 $: if ($preferences?.name && $page.params.code) {
     gameStore = multiplayerWSStore(
         `ws://localhost:8787/game/${$page.params.code}/connect?name=${$preferences?.name}`,
     );
 }
-$: if (!me && userCount > 0 && browser) {
+$: if (!data.me && userCount > 0 && browser) {
     invalidate(`http://localhost:8787/game/${$page.params.code}/me`);
 }
-$: console.log(game?.users, me);
-$: if ($gameStore) game = $gameStore;
-$: otherUsers = game?.users
-    ? Object.values(game?.users).filter((user) => user.id !== me?.id)
+$: console.log(data.game?.users, data.me);
+$: if ($gameStore) data.game = $gameStore;
+$: otherUsers = data.game?.users
+    ? Object.values(data.game?.users).filter((user) => user.id !== data.me?.id)
     : [];
 $: passage =
-    game && game?.passageIndex >= 0 ? passages[game?.passageIndex] : undefined;
-$: position = me?.position ?? 0;
+    data.game && data.game?.passageIndex >= 0
+        ? passages[data.game?.passageIndex]
+        : undefined;
+$: position = data.me?.position ?? 0;
 onMount(() => {
-    if (me) {
+    if (data.me) {
         return;
     }
 
-    if (game.state !== GameState.Waiting) {
+    if (data.game.state !== GameState.Waiting) {
         inGameModal?.showModal();
         return;
     }
@@ -127,17 +109,17 @@ function startGame() {
         </div>
     {:else}
         <div style="padding: 20px;" transition:slide|local>
-            {#if game?.users}
+            {#if data.game?.users}
                 <section class="multiplayer-bar">
-                    {#if me?.admin && game.state === GameState.Waiting}
+                    {#if data.me?.admin && data.game.state === GameState.Waiting}
                         <button on:click={startGame} transition:fade
                             >Start game</button
                         >
                     {/if}
-                    {#each Object.values(game.users) as user (user.id)}
+                    {#each Object.values(data.game.users) as user (user.id)}
                         <div
                             class="player"
-                            class:me={user.id === me?.id}
+                            class:me={user.id === data.me?.id}
                             class:offline={!user.connected && browser}
                         >
                             <span class="player-name">{user.name}</span>
@@ -146,14 +128,14 @@ function startGame() {
                     {/each}
                 </section>
             {/if}
-            {#if game.state == GameState.Finished}
+            {#if data.game.state == GameState.Finished}
                 <p transition:slide|local>Leaderboard</p>
             {:else}
                 <div transition:slide|local>
                     <MultiplayerEditor
                         {passage}
-                        startTime={game.state === GameState.Playing
-                            ? new Date(game.startTime)
+                        startTime={data.game.state === GameState.Playing
+                            ? new Date(data.game.startTime)
                             : undefined}
                         {position}
                         otherCursors={otherUsers}

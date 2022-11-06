@@ -1,14 +1,11 @@
 <script lang="ts">
 import { isNonLetterKey } from '$lib/keyboard';
-import { passages } from '$lib/passages';
+import { getRandomPassage } from '$lib/passages';
 import MultiplayerEditor from './MultiplayerEditor.svelte';
 
-let startTime: Date | undefined = undefined;
-let passage = getRandomPassage();
+export let passage: string;
 
-function getRandomPassage() {
-    return passages[Math.trunc(Math.random() * passages.length)];
-}
+let startTime: Date | undefined = undefined;
 </script>
 
 <MultiplayerEditor

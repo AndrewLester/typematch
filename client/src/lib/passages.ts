@@ -70,3 +70,7 @@ export function splitPassage(passage: string) {
     });
     return sections;
 }
+
+export function getRandomPassage() {
+    return passages[Math.trunc(Math.random() * passages.length)];
+}

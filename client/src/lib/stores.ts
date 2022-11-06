@@ -1,4 +1,4 @@
-import { browser } from '$app/env';
+import { browser } from '$app/environment';
 import { writable as storageWritable } from 'svelte-local-storage-store';
 import { readable, writable } from 'svelte/store';
 import type { MultiplayerGame } from './types';
