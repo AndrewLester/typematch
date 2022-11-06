@@ -4,14 +4,16 @@ import { browser, dev } from '$app/environment';
 import { invalidate } from '$app/navigation';
 
 import { page } from '$app/stores';
+import { PUBLIC_WORKER_HOST } from '$env/static/public';
+import Hoverable from '$lib/components/Hoverable.svelte';
 import MultiplayerEditor from '$lib/components/MultiplayerEditor.svelte';
 import { passages } from '$lib/passages';
-import { multiplayerWSStore, preferences } from '$lib/stores';
-import { GameState } from '$lib/types';
+import { clock, multiplayerWSStore, preferences, time } from '$lib/stores';
+import { horizontalSlide } from '$lib/transition';
+import { countdownTime, GameState } from '$lib/types';
 import { onMount } from 'svelte';
-import { fade, slide } from 'svelte/transition';
+import { slide } from 'svelte/transition';
 import type { PageData } from './$types';
-import { PUBLIC_WORKER_HOST } from '$env/static/public';
 
 export let data: PageData;
 let joinModal: HTMLDialogElement | undefined;
@@ -34,6 +36,14 @@ $: if (!data.me && userCount > 0 && browser) {
         }/me`,
     );
 }
+const goMessageDuration = 500;
+$: countdownTimer =
+    data.game.state === GameState.Countdown ||
+    (data.game.state === GameState.Playing &&
+        $time.getTime() - data.game.countdownTime <
+            countdownTime + goMessageDuration)
+        ? clock(100)
+        : null;
 
 $: if ($gameStore) data.game = $gameStore;
 $: otherUsers = data.game?.users
@@ -129,19 +139,28 @@ function startGame() {
             {#if data.game?.users}
                 <section class="multiplayer-bar">
                     {#if data.me?.admin && data.game.state === GameState.Waiting}
-                        <button on:click={startGame} transition:fade
-                            >Start game</button
+                        <button
+                            on:click={startGame}
+                            transition:horizontalSlide|local
+                            class="start-game">Start game</button
                         >
                     {/if}
-                    {#each Object.values(data.game.users) as user (user.id)}
-                        <div
-                            class="player"
-                            class:me={user.id === data.me?.id}
-                            class:offline={!user.connected && browser}
-                        >
-                            <span class="player-name">{user.name}</span>
-                            ({user.ping}ms)
-                        </div>
+                    {#each Object.values(data.game.users) as user, i (user.id)}
+                        <Hoverable let:hovering>
+                            <div
+                                class="player"
+                                class:me={user.id === data.me?.id}
+                                class:offline={!user.connected && browser}
+                            >
+                                <span class="player-name">{user.name}</span>
+                                {#if data?.game.state === GameState.Waiting || hovering}<span
+                                        class="player-ping"
+                                        transition:horizontalSlide|local
+                                        >({user.ping}ms)</span
+                                    >{/if}
+                                {#if i !== userCount - 1}&mdash;{/if}
+                            </div>
+                        </Hoverable>
                     {/each}
                 </section>
             {/if}
@@ -163,6 +182,23 @@ function startGame() {
         </div>
     {/if}
 </section>
+
+{#if countdownTimer && $countdownTimer !== null}
+    {@const countdown = Math.ceil(
+        (countdownTime -
+            ($countdownTimer.getTime() - data.game.countdownTime)) /
+            1000,
+    )}
+    <h1
+        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 10rem;"
+    >
+        {#if countdown > 0}
+            {countdown}
+        {:else}
+            Go!
+        {/if}
+    </h1>
+{/if}
 
 <dialog bind:this={joinModal} class="modal">
     <h1>Join Game</h1>
@@ -195,13 +231,21 @@ function startGame() {
     background-color: rgba(0, 0, 0, 0.5);
     backdrop-filter: saturate(180%) blur(5px);
 }
+.player {
+    margin-right: 10px;
+}
 .player-name {
     font-size: 1.5rem;
 }
 .me .player-name {
     color: green;
 }
-.player.offline {
+.player-ping {
+    line-height: 1;
+    vertical-align: baseline;
+    display: inline-block;
+}
+.player.offline .player-name {
     text-decoration: line-through;
     color: rgb(163, 163, 163);
 }
@@ -209,6 +253,9 @@ function startGame() {
     width: 100%;
     transition: all 250ms ease;
     margin-left: 0;
+}
+.start-game {
+    margin-right: 10px;
 }
 h1 {
     padding: 1em;
@@ -221,7 +268,6 @@ h1 {
     min-height: 75px;
     display: flex;
     flex-flow: row nowrap;
-    gap: 10px;
     padding-block: 1em;
     align-items: center;
 }

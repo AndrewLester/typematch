@@ -22,6 +22,7 @@ interface SafeUser extends User {
 
 const enum GameState {
 	Waiting,
+	Countdown,
 	Playing,
 	Finished,
 }
@@ -61,10 +62,12 @@ namespace Message {
 }
 
 const healthCheckInterval = 10000;
+const countdownTime = 3000;
 
 export interface MultiplayerGame {
 	state: GameState;
 	startTime: number | undefined;
+	countdownTime: number | undefined;
 	users: Record<string, User>;
 	passageIndex: number;
 }
@@ -80,6 +83,7 @@ export class GameDurableObject extends createDurable() {
 		this.game = {
 			users: {},
 			startTime: undefined,
+			countdownTime: undefined,
 			state: GameState.Waiting,
 			passageIndex: -1,
 		};
@@ -140,8 +144,11 @@ export class GameDurableObject extends createDurable() {
 			return new Response(null, { status: 403 });
 		}
 
-		this.game.state = GameState.Playing;
-		this.game.startTime = new Date().getTime();
+		const now = Date.now();
+
+		this.game.state = GameState.Countdown;
+		this.game.countdownTime = now;
+		this.setAlarm(now + countdownTime);
 		this.sendGame();
 		return 'Success';
 	}
@@ -306,19 +313,20 @@ export class GameDurableObject extends createDurable() {
 	}
 
 	scheduleNextAlarm() {
-		try {
-			const alarmTime = Date.now() + healthCheckInterval;
-			this.setAlarm(alarmTime);
-		} catch {
-			console.log(
-				'Durable Objects Alarms not supported in Miniflare (--local mode) yet.',
-			);
-		}
+		const alarmTime = Date.now() + healthCheckInterval;
+		this.setAlarm(alarmTime);
 	}
 
 	alarm() {
-		this.sendGame();
+		if (this.game.state === GameState.Countdown) {
+			this.game.state = GameState.Playing;
+			this.game.startTime = Date.now();
+		}
 
-		if (Object.keys(this.game.users).length > 0) this.scheduleNextAlarm();
+		if (Object.keys(this.game.users).length > 0) {
+			this.scheduleNextAlarm();
+		}
+
+		this.sendGame();
 	}
 }
