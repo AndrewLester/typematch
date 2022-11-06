@@ -1,0 +1,42 @@
+name = "typematch-multiplayer"
+main = "src/index.ts"
+compatibility_date = "2022-05-10"
+
+compatibility_flags = ["durable_object_alarms"]
+
+[env.production]
+routes = [
+	{ pattern = "multiplayer.typematch.win", custom_domain = true, zone_name = "typematch.win" }
+]
+
+[env.local.vars]
+SESSION_SECRET = "e76c780843942960880db4a2bc7e50c8"
+FRONTEND_URL = "http://localhost:3000"
+WORKER_ENV = "development"
+WORKER_HOST = "localhost"
+
+[env.production.vars]
+FRONTEND_URL = "https://typematch.win"
+WORKER_ENV = "production"
+WORKER_HOST = "typematch.win"
+
+# Secrets required
+# - SESSION_SECRET
+
+[env.local.durable_objects]
+bindings = [
+  { name = "GameDurableObject", class_name = "GameDurableObject" },
+]
+
+[env.production.durable_objects]
+bindings = [
+  { name = "GameDurableObject", class_name = "GameDurableObject" },
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["WebSocketDurableObject"]
+
+[[migrations]]
+tag = "v2"
+renamed_classes = [{from = "WebSocketDurableObject", to = "GameDurableObject"}]

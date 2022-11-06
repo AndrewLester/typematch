@@ -1,4 +1,4 @@
-const passages = [
+export const passages = [
     'It was a scrape that he hardly noticed. Sure, there was a bit of blood but it was minor compared to most of the other cuts and bruises he acquired on his adventures. There was no way he could know that the rock that produced the cut had alien genetic material on it that was now racing through his bloodstream. He felt perfectly normal and continued his adventure with no knowledge of what was about to happen to him.',
     "There were only two ways to get out of this mess if they all worked together. The problem was that neither was all that appealing. One would likely cause everyone a huge amount of physical pain while the other would likely end up with everyone in jail. In Sam's mind, there was only one thing to do. He threw everyone else under the bus and he secretly sprinted away leaving the others to take the fall without him.",
     'He sat staring at the person in the train stopped at the station going in the opposite direction. She sat staring ahead, never noticing that she was being watched. Both trains began to move and he knew that in another timeline or in another universe, they had been happy together.',
@@ -49,4 +49,28 @@ const passages = [
     "Nobody really understood Kevin. It wasn't that he was super strange or difficult. It was more that there wasn't enough there that anyone wanted to take the time to understand him. This was a shame as Kevin had many of the answers to the important questions most people who knew him had. It was even more of a shame that they'd refuse to listen even if Kevin offered to give them the answers. So, Kevin remained silent, misunderstood, and kept those important answers to life to himself.",
 ];
 
-export default passages;
+export function splitPassage(passage: string) {
+    let sections = passage
+        .replace(/\n/gi, '↩\n')
+        .replace(/’/gi, "'")
+        .replace(/[”“]/gi, '"')
+        .split(/[\n]/gi);
+    sections = sections.flatMap((section) => {
+        const split: string[] = [];
+        while (section.length > 70) {
+            const nextSpaceLocation = section.indexOf(' ', 60);
+            const nextSpace =
+                nextSpaceLocation === -1 ? section.length : nextSpaceLocation;
+            const sub = section.slice(0, Math.min(70, nextSpace));
+            split.push(sub.trim() + ' ');
+            section = section.slice(Math.min(70, nextSpace));
+        }
+        split.push(section.trim());
+        return split;
+    });
+    return sections;
+}
+
+export function getRandomPassage() {
+    return passages[Math.trunc(Math.random() * passages.length)];
+}
