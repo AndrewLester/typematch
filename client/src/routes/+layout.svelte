@@ -14,6 +14,10 @@ import '../app.css';
     </svg>
 </a>
 
+<svelte:head>
+    <title>TypeMatch</title>
+</svelte:head>
+
 <main data-sveltekit-prefetch>
     <slot />
 </main>

@@ -236,7 +236,7 @@ export class GameDurableObject extends createDurable() {
 		});
 
 		const closeOrErrorHandler = () => {
-			user.connected = false;
+			this.game.users[user.id].connected = false;
 			this.sendGame();
 		};
 		webSocket.addEventListener('close', closeOrErrorHandler);
