@@ -29,7 +29,6 @@ $: if ($preferences?.name && $page.params.code && !gameStore) {
         }/connect?name=${$preferences?.name}`,
     );
 }
-$: console.log(data.me);
 $: if (
     !data.me &&
     userCount > 0 &&
