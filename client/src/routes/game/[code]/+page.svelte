@@ -29,7 +29,12 @@ $: if ($preferences?.name && $page.params.code && !gameStore) {
         }/connect?name=${$preferences?.name}`,
     );
 }
-$: if (!data.me && userCount > 0 && browser) {
+$: if (
+    !data.me &&
+    userCount > 0 &&
+    browser &&
+    data.game.state === GameState.Waiting
+) {
     invalidate(
         `http${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
             $page.params.code
