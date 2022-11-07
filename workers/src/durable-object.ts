@@ -106,6 +106,12 @@ export class GameDurableObject extends createDurable() {
 	}
 
 	async connect(name: string, request: RequestLike, env: Environment) {
+		if (this.game.state !== GameState.Waiting) {
+			return new Response("Can't join an in progress game", {
+				status: 400,
+			});
+		}
+
 		if ((name.length < 1 || name.length > 16) && !request.session) {
 			return new Response(
 				'Name length must be between 1 and 16 characters (inclusive)',
