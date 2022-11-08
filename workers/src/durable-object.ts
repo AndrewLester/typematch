@@ -147,9 +147,13 @@ export class GameDurableObject extends createDurable() {
 		});
 	}
 
-	async attemptStart(session: User) {
+	attemptStart(session: User) {
 		if (!session.admin) {
 			return new Response(null, { status: 403 });
+		}
+
+		if (this.game.state !== GameState.Waiting) {
+			return new Response(null, { status: 400 });
 		}
 
 		const now = Date.now();
