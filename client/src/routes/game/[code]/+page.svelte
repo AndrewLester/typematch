@@ -33,7 +33,8 @@ $: if (
     !data.me &&
     userCount > 0 &&
     browser &&
-    data.game.state === GameState.Waiting
+    data.game.state === GameState.Waiting &&
+    $preferences?.name
 ) {
     invalidate(
         `http${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
