@@ -137,6 +137,8 @@ function startGame() {
             <div class="passages">
                 {#each passages as availablePassage, i}
                     <button class="passage" on:click={() => selectPassage(i)}
+                        ><span class="passage-header"
+                            >~{Math.round(availablePassage.length / 5)} words</span
                         >{availablePassage}</button
                     >
                 {/each}
@@ -283,6 +285,13 @@ h1 {
     overflow-x: auto;
     gap: 20px;
 }
+.passage-header {
+    float: right;
+    margin: 5px 0 0 30px;
+    border: 1px solid white;
+    padding: 2px;
+    font-size: 1.25rem;
+}
 .passage {
     display: -webkit-box;
     max-width: 25ch;
@@ -296,7 +305,7 @@ h1 {
     padding: 20px;
     border-radius: 20px;
     max-height: 200px;
-
+    text-align: left;
     color: white;
     background-color: transparent;
     cursor: pointer;
