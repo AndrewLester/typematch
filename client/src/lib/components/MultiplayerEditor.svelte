@@ -4,6 +4,7 @@ import { isNonLetterKey } from '$lib/keyboard';
 import { splitPassage } from '$lib/passages';
 import { time } from '$lib/stores';
 import { lcp } from '$lib/string';
+import { horizontalSlide } from '$lib/transition';
 import type { User } from '$lib/types';
 import { createEventDispatcher, onMount } from 'svelte';
 import { fade, slide } from 'svelte/transition';
@@ -189,10 +190,13 @@ function restart() {
 
 <section>
     <h3>
-        <span class="time">{startTime ? timerTimeFormat(elapsed) : '0:00'}</span
-        >
+        <span class="time">
+            {startTime ? timerTimeFormat(elapsed) : '0:00'}
+        </span>
         {#if !started}
-            <slot name="waiting">Waiting to start...</slot>
+            <span transition:fade|local={{ duration: 250 }}>
+                <slot name="waiting">Waiting to start...</slot>
+            </span>
         {/if}
         {#if done && canRestart}
             <button class="restart" in:slide on:click={restart}

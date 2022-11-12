@@ -1,4 +1,11 @@
 import { cubicOut } from 'svelte/easing';
+import type { EasingFunction } from 'svelte/types/runtime/transition';
+
+type HorizontalSlideParameters = {
+    delay?: number;
+    duration?: number;
+    easing?: EasingFunction;
+};
 
 const defaultHorizontalSlideArguments = {
     delay: 0,
@@ -13,7 +20,7 @@ export function horizontalSlide(
         delay = 0,
         duration = 250,
         easing = cubicOut,
-    } = defaultHorizontalSlideArguments,
+    }: HorizontalSlideParameters = defaultHorizontalSlideArguments,
 ) {
     const style = getComputedStyle(node);
     const opacity = +style.opacity;
