@@ -4,7 +4,6 @@ import { isNonLetterKey } from '$lib/keyboard';
 import { splitPassage } from '$lib/passages';
 import { time } from '$lib/stores';
 import { lcp } from '$lib/string';
-import { horizontalSlide } from '$lib/transition';
 import type { User } from '$lib/types';
 import { createEventDispatcher, onMount } from 'svelte';
 import { fade, slide } from 'svelte/transition';
@@ -235,7 +234,7 @@ function restart() {
                             {/each}
                         </p>
                         <!-- prettier-ignore -->
-                        <pre>{#each common_prefix as letter, i}<span class="letter correct" class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name} in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
+                        <pre>{#each common_prefix as letter, i}<span class="letter correct" class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name} in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:blocked={!canRestart && !startTime} class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
                     </div>
                 {:else}
                     <div transition:slide|local>
@@ -338,6 +337,10 @@ span.other-cursor::after {
 }
 span.correct {
     color: rgb(217, 255, 228);
+}
+span.carrot.blocked {
+    color: rgba(255, 0, 0, 0.75);
+    animation: none !important;
 }
 span.carrot.animate {
     animation: blink 1s infinite;
