@@ -62,7 +62,7 @@ namespace Message {
 }
 
 const healthCheckInterval = 10000;
-const countdownTime = 3000;
+const countdownTime = 10000;
 
 export interface MultiplayerGame {
 	state: GameState;

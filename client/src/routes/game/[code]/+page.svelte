@@ -5,6 +5,8 @@ import { invalidate } from '$app/navigation';
 
 import { page } from '$app/stores';
 import { PUBLIC_WORKER_HOST } from '$env/static/public';
+import Countdown from '$lib/components/Countdown.svelte';
+import CountdownText from '$lib/components/CountdownText.svelte';
 import Hoverable from '$lib/components/Hoverable.svelte';
 import MultiplayerEditor from '$lib/components/MultiplayerEditor.svelte';
 import { passages } from '$lib/passages';
@@ -168,6 +170,15 @@ function startGame() {
                             </div>
                         </Hoverable>
                     {/each}
+                    {#if countdownTimer && $countdownTimer !== null}
+                        {@const countdown =
+                            countdownTime -
+                            ($countdownTimer.getTime() -
+                                data.game.countdownTime)}
+                        <div class="countdown-wrapper">
+                            <Countdown {countdown} totalTime={countdownTime} />
+                        </div>
+                    {/if}
                 </section>
             {/if}
             {#if data?.game.state == GameState.Finished}
@@ -191,23 +202,6 @@ function startGame() {
         </div>
     {/if}
 </section>
-
-{#if countdownTimer && $countdownTimer !== null}
-    {@const countdown = Math.ceil(
-        (countdownTime -
-            ($countdownTimer.getTime() - data.game.countdownTime)) /
-            1000,
-    )}
-    <h1
-        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 10rem;"
-    >
-        {#if countdown > 0}
-            {countdown}
-        {:else}
-            Go!
-        {/if}
-    </h1>
-{/if}
 
 <dialog bind:this={joinModal} class="modal">
     <h1>Join Game</h1>
@@ -274,7 +268,7 @@ h1 {
     margin-left: calc(-1 * calc(calc(100vw - 90ch) / 2));
 }
 .multiplayer-bar {
-    min-height: 75px;
+    height: 75px;
     display: flex;
     flex-flow: row nowrap;
     padding-block: 1em;
@@ -307,5 +301,8 @@ h1 {
     background-color: transparent;
     cursor: pointer;
     scroll-snap-align: center;
+}
+.countdown-wrapper {
+    margin-left: auto;
 }
 </style>

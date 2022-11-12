@@ -15,7 +15,7 @@ export const enum GameState {
     Finished,
 }
 
-export const countdownTime = 3000;
+export const countdownTime = 10000;
 
 export interface MultiplayerGame {
     state: GameState;
