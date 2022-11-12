@@ -8,7 +8,7 @@ export let totalTime: number;
 const percentFilled = tweened(
     (totalTime / 1000 - Math.ceil(countdown / 1000)) / (totalTime / 1000),
     {
-        duration: 1000,
+        duration: 1050,
         easing: linear,
     },
 );
