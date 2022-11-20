@@ -30,7 +30,8 @@ $: percentFilled.set((totalTimeSeconds - cleanTime + 1) / totalTimeSeconds);
         fill="none"
         stroke-dasharray={path && path.getTotalLength()}
         stroke-dashoffset={path &&
-            Math.max(0, 1 - $percentFilled) * path.getTotalLength()}
+            Math.min(1, Math.max(0, 1 - $percentFilled)) *
+                path.getTotalLength()}
     />
 </svg>
 <p class:jump={cleanTime <= 0}>
