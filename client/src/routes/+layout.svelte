@@ -46,7 +46,7 @@ $: singleplayer = $page.url.pathname === '/';
 main {
     display: grid;
     grid-template-columns: 100%;
-    grid-template-rows: 75% auto;
+    grid-template-rows: 80% auto;
     justify-content: center;
     justify-items: center;
     gap: 15px;

@@ -5,13 +5,14 @@ import type { ChartTabularData, ScaleTypes } from '@carbon/charts/interfaces';
 
 export let singleplayer = true;
 export let statistics: PlayerStatistic[];
+export let skeleton = false;
 
 const singlePlayerOverallStatistics = new Set([
     'wpm',
     'misses',
     'percent',
 ]) as Set<PlayerStatisticType>;
-const singlePlayerOverallStatisticsOptions = {
+$: singlePlayerOverallStatisticsOptions = {
     title: 'Overall Stats',
     color: {
         scale: {
@@ -19,6 +20,9 @@ const singlePlayerOverallStatisticsOptions = {
             Misses: '#BB2200',
             Percent: '#22BB00',
         },
+    },
+    data: {
+        loading: skeleton,
     },
     axes: {
         bottom: {
@@ -97,7 +101,7 @@ function computeSinglePlayerOverallStatistics(statistics: PlayerStatistic[]) {
             data.push(chartRecord);
         }
     }
-    console.log(data);
+
     return data;
 }
 </script>

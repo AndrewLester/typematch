@@ -196,7 +196,7 @@ function restart() {
     done = false;
     input!.value = '';
     input?.focus();
-    document.body.scrollTo({ top: 0, behavior: 'smooth' });
+    document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
     dispatch('restart');
 }
 
@@ -230,7 +230,7 @@ export function focus() {
     <div
         class="wrapper"
         class:done
-        class:focused={true}
+        class:focused
         class:started
         style="--current-section-number: {currentSectionNumber -
             sectionViewStart};"

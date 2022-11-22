@@ -40,7 +40,7 @@ $: if (!done) {
         }}
         class:open={statsOpen}
     >
-        <Statistics {statistics} />
+        <Statistics {statistics} skeleton={!statsOpen} />
     </button>
 {/if}
 
