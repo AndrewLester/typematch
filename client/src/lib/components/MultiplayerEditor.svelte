@@ -168,7 +168,18 @@ function handleKeyDown(e: KeyboardEvent) {
         } else {
             text += e.key;
         }
-        dispatch('input', lcp(input?.value + e.key, passage!));
+        const commonPrefix = lcp(input?.value + e.key, passage!);
+        dispatch('input', commonPrefix);
+        if (commonPrefix.length < (input?.value + e.key).length) {
+            dispatch('collect', {
+                lcp: commonPrefix,
+                incorrect: text.slice(commonPrefix.length),
+                wpm: smoothWPM,
+                percent: Math.trunc(
+                    (commonPrefix.length / passage.length) * 100,
+                ),
+            });
+        }
     }
 
     if (text === currentSection) {
@@ -185,12 +196,6 @@ function calculateCorrectWordsTyped(str?: string) {
     return correctPrefix ? correctPrefix.length / 5 : 0;
 }
 
-$: sectionIndexLenMap = passageSections.reduce(
-    (prev, cur) =>
-        [...prev, prev.reduce((p, c) => p + c, 0) + cur.length] as any,
-    [],
-);
-
 function isCharacterInspected(
     sectionIndex: number,
     i: number,
@@ -199,19 +204,10 @@ function isCharacterInspected(
     if (inspect === undefined || !done) return;
 
     const inspectIdx = Math.trunc(passage.length * (inspect / 100));
-    if (
-        sectionIndexLenMap[sectionIndex] > inspectIdx &&
-        sectionIndexLenMap[sectionIndex] -
-            passageSections[sectionIndex].length <=
-            inspectIdx
-    ) {
-        const totalIndex =
-            sectionIndexLenMap[sectionIndex] -
-            (passageSections[sectionIndex].length - i);
-        console.log(inspectIdx, totalIndex);
-        return Math.abs(inspectIdx - totalIndex) < 5;
-    }
-    return false;
+
+    const characterIndex = sectionIndex + i;
+
+    return Math.abs(inspectIdx - characterIndex) < 5;
 }
 
 function restart() {
@@ -287,13 +283,13 @@ export function focus() {
                             {/each}
                         </p>
                         <!-- prettier-ignore -->
-                        <pre>{#each common_prefix as letter, i}<span class="letter correct" class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name} in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:blocked={!canRestart && !startTime} class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
+                        <pre>{#each common_prefix as letter, j}<span class="letter correct" class:other-cursor={!!cursorMap[j + sectionCharIndex]} data-user={cursorMap[j + sectionCharIndex ]?.name} in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:blocked={!canRestart && !startTime} class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
                     </div>
                 {:else}
                     <div transition:slide|local>
                         <p class="line">
                             <!-- prettier-ignore -->
-                            {#each section as character, i}<span class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name} class:inspect={isCharacterInspected(sectionIndex, i, inspect)}>{character}</span>{/each}
+                            {#each section as character, j}<span class:other-cursor={!!cursorMap[j + sectionCharIndex]} data-user={cursorMap[j + sectionCharIndex ]?.name} class:inspect={isCharacterInspected(sectionCharIndex, j, inspect)}>{character}</span>{/each}
                         </p>
                     </div>
                 {/if}
@@ -407,7 +403,7 @@ span.carrot.animate {
     animation: blink 1s infinite;
 }
 span.inspect {
-    font-size: 1.75rem;
+    font-weight: bold;
     color: rgb(216, 97, 255);
 }
 p.line > span {

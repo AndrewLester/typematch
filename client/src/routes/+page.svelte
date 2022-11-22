@@ -16,6 +16,7 @@ let inspect: number | undefined = undefined;
 
 $: if (!done) {
     statsOpen = false;
+    inspect = undefined;
 }
 </script>
 
