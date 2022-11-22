@@ -1,3 +1,12 @@
+<script context="module" lang="ts">
+export type EditorStatisticsEvent = {
+    lcp: string;
+    wpm: number;
+    incorrect: string;
+    percent: number;
+};
+</script>
+
 <script lang="ts">
 import { timerTimeFormat } from '$lib/format';
 import { isNonLetterKey } from '$lib/keyboard';
@@ -5,7 +14,7 @@ import { splitPassage } from '$lib/passages';
 import { time } from '$lib/stores';
 import { lcp } from '$lib/string';
 import type { User } from '$lib/types';
-import { createEventDispatcher, onMount } from 'svelte';
+import { createEventDispatcher } from 'svelte';
 import { fade, slide } from 'svelte/transition';
 
 export let passage: string;
@@ -13,9 +22,11 @@ export let startTime: Date | undefined = undefined;
 export let otherCursors: User[] = [];
 export let position: number = 0;
 export let canRestart = false;
+export let done = false;
 
 const dispatch = createEventDispatcher<{
     input: string;
+    collect: EditorStatisticsEvent;
     restart: undefined;
     keydown: KeyboardEvent;
 }>();
@@ -23,11 +34,10 @@ const dispatch = createEventDispatcher<{
 let input: HTMLTextAreaElement | undefined;
 let elapsed = 0;
 
+let focused = true;
 let currentSectionNumber = 0;
 let text = '';
 let lastTyped = 0;
-let done = false;
-let peakWPM = 0;
 let wpm = 0;
 let smoothWPM = 0;
 let wordsTyped = 0;
@@ -35,6 +45,7 @@ let prevWordsTyped = 0;
 let firstPosition: number | null = null;
 let loadedFirstPosition = false;
 
+const getText = () => text;
 const getCurrentWordsTyped = () => wordsTyped;
 
 $: started = startTime !== undefined;
@@ -51,7 +62,15 @@ $: if (elapsed) {
 }
 $: if (elapsed) wpm = Math.max((wordsTyped - prevWordsTyped) / (1 / 60), 0);
 $: if (elapsed) smoothWPM = (5 * smoothWPM + wpm) / 6;
-$: peakWPM = smoothWPM > peakWPM ? smoothWPM : peakWPM;
+$: if (elapsed) {
+    const commonPrefix = lcp(input?.value ?? '', passage ?? '');
+    dispatch('collect', {
+        lcp: commonPrefix,
+        incorrect: getText().slice(commonPrefix.length),
+        wpm: smoothWPM,
+        percent: Math.trunc((commonPrefix.length / passage.length) * 100),
+    });
+}
 $: common_prefix = lcp(currentSection || '', text);
 $: cursorMap = otherCursors.reduce(
     (obj, user) => ((obj[user.position] = user), obj),
@@ -160,10 +179,6 @@ function handleKeyDown(e: KeyboardEvent) {
     lastTyped = $time.getTime();
 }
 
-onMount(() => {
-    setTimeout(() => input?.blur(), 50);
-});
-
 function calculateCorrectWordsTyped(str?: string) {
     const correctPrefix = lcp(str || input?.value || '', passage || '');
     return correctPrefix ? correctPrefix.length / 5 : 0;
@@ -174,21 +189,24 @@ function restart() {
     currentSectionNumber = 0;
     text = '';
     lastTyped = 0;
-    peakWPM = 0;
     wpm = 0;
     smoothWPM = 0;
     wordsTyped = 0;
     prevWordsTyped = 0;
     done = false;
     input!.value = '';
+    input?.focus();
+    document.body.scrollTo({ top: 0, behavior: 'smooth' });
     dispatch('restart');
+}
+
+export function focus() {
+    input?.focus();
 }
 </script>
 
-<svelte:body on:focus={() => input?.focus()} />
-
 <section>
-    <h3>
+    <h1>
         <span class="time">
             {startTime ? timerTimeFormat(elapsed) : '0:00'}
         </span>
@@ -202,16 +220,21 @@ function restart() {
                 >Click to restart</button
             >
         {/if}
-    </h3>
-    <h4>
-        WPM: {smoothWPM.toFixed(0)}, Peak: {peakWPM.toFixed(0) || 'Unknown'}
-    </h4>
+    </h1>
+    <h2>
+        WPM: {smoothWPM.toFixed(0)}
+    </h2>
 
+    <!-- Safe to disable since keyboard navigating to the text area focuses -->
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div
         class="wrapper"
         class:done
+        class:focused={true}
+        class:started
         style="--current-section-number: {currentSectionNumber -
             sectionViewStart};"
+        on:click={() => input?.focus()}
     >
         {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i + sectionViewStart)}
             {@const sectionCharIndex = passage.indexOf(section)}
@@ -254,11 +277,13 @@ function restart() {
             {/if}
         {/each}
     </div>
+
     <!-- svelte-ignore a11y-autofocus -->
     <textarea
         bind:this={input}
         autofocus
-        on:blur={() => input?.focus()}
+        on:blur={() => (focused = false)}
+        on:focus={() => (focused = true)}
         on:keydown={handleKeyDown}
         autocomplete="false"
         autocapitalize="false"
@@ -268,22 +293,28 @@ function restart() {
 </section>
 
 <style>
-h3,
-h4 {
+h1,
+h2 {
     color: white;
     font-weight: normal;
     font-family: Arial, Helvetica, sans-serif;
     margin-bottom: 5px;
+    font-size: 1.17rem;
 }
-h4 {
+h2 {
     margin-bottom: 20px;
+    font-size: 1rem;
 }
 textarea {
+    resize: none;
     opacity: 0;
-    height: 0;
+    height: 0.1px;
+    width: 0.1px;
+
     padding: 0;
     margin: 0;
-    border: 0;
+    border: none;
+    appearance: none;
 }
 pre,
 p {
@@ -360,6 +391,27 @@ div.wrapper {
     display: flex;
     flex-flow: column nowrap;
 }
+div.wrapper:not(.done):not(.focused)::after {
+    content: 'Editor unfocused. Click here to refocus.';
+    position: absolute;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    vertical-align: middle;
+    font-size: 2rem;
+    text-align: center;
+    border-radius: 20px;
+    border: 5px dashed gray;
+    background-color: rgba(0, 0, 0, 0.75);
+    color: white;
+    --scale: 20px;
+    width: calc(100% + var(--scale));
+    height: calc(100% + var(--scale));
+    top: calc(-1 * var(--scale) / 2);
+    left: calc(-1 * var(--scale) / 2);
+    cursor: pointer;
+    backdrop-filter: blur(3px);
+}
 p.line {
     transition: color 200ms ease;
 }
@@ -369,20 +421,37 @@ div.done p.line {
 div.line {
     margin-block: 0.15rem;
 }
-div.wrapper:not(.done)::before {
+div.wrapper::before {
     content: '→';
     position: absolute;
     left: -30px;
     top: 0px;
     transform: translateY(
-        calc(0.9ex + calc(var(--current-section-number) * 2.8ex))
+        calc(0.9ex + calc(var(--current-section-number) * 2.675ex))
     );
-    transition: transform 200ms ease;
     font-size: 1.5rem;
     color: white;
     font-family: Arial, Helvetica, sans-serif;
-    animation: fade-in 0.5s both 1 ease-in;
+    opacity: 0;
+    transition: opacity 0.5s ease, transform 200ms ease;
+    animation: fade-in 0.5s 1 ease;
+    font-family: var(--font-heading);
 }
+div.wrapper.done::before {
+    opacity: 0;
+    /* One last past the end minus the translate of one line (the last line) */
+    transform: translateY(
+        calc(
+            0.9ex + calc(calc(var(--current-section-number) * 2.675ex)) -
+                3.575ex
+        )
+    );
+}
+
+div.wrapper.focused:not(.done)::before {
+    opacity: 1;
+}
+
 .restart {
     display: inline;
     color: white;

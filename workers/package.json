@@ -8,7 +8,7 @@
 		"wrangler": "^2.0.23"
 	},
 	"scripts": {
-		"start": "wrangler dev src/index.ts --env local",
+		"start": "wrangler dev src/index.ts --env local --local",
 		"deploy": "wrangler publish src/index.ts --env production",
 		"start-stackblitz": "WRANGLER_SEND_METRICS=false wrangler dev src/index.ts --local"
 	},

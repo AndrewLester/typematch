@@ -1,8 +1,9 @@
 :root {
     --header-height: 50px;
-    color: white;
     --font-body: 'Inter';
     --font-heading: 'Raleway';
+    --transition-duration: 250ms;
+    --color-background: rgb(31, 31, 31);
 }
 
 *,
@@ -10,11 +11,14 @@
 ::after {
     box-sizing: border-box;
     margin: 0px;
-    font-family: var(--font-body);
+    font-family: var(--font-body) !important;
 }
 
 body {
-    background-color: rgb(31, 31, 31);
+    background-color: var(--color-background);
+    font-family: var(--font-body);
+    line-height: unset;
+    color: white;
 }
 
 h1 {
@@ -34,20 +38,48 @@ h6 {
 }
 
 button,
+a {
+    transition: all var(--transition-duration) ease;
+    outline-width: 0;
+    outline-offset: 2px;
+}
+
+button,
 a.button {
     cursor: pointer;
     appearance: none;
     color: white;
-    background-color: transparent;
     border: 1px solid white;
+    background-color: transparent;
     border-radius: 5px;
     padding: 0.5em;
     font-size: 1rem;
     text-decoration: none;
 }
 
+:where(button, a.button):disabled {
+    color: rgb(150, 150, 150);
+    border-color: rgb(150, 150, 150);
+}
+
+:where(button, a):focus-visible {
+    outline: 3px solid white;
+}
+
 dialog > h1 {
     text-align: center;
+}
+
+form {
+    display: flex;
+    flex-flow: column nowrap;
+    gap: 10px;
+    margin-block: 25px;
+    align-items: flex-start;
+}
+
+form > .button-row {
+    margin-block: 10px;
 }
 
 input {
@@ -59,9 +91,15 @@ input {
     color: white;
     background-color: rgb(45, 45, 45);
 }
+
 input::placeholder {
     color: rgb(196, 196, 196);
 }
+
 input:focus {
     outline: 1px solid red;
+}
+
+p {
+    line-height: unset;
 }

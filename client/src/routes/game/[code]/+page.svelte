@@ -5,10 +5,12 @@ import { invalidate } from '$app/navigation';
 
 import { page } from '$app/stores';
 import { PUBLIC_WORKER_HOST } from '$env/static/public';
+import { gameURL } from '$lib/api';
 import Countdown from '$lib/components/Countdown.svelte';
-import CountdownText from '$lib/components/CountdownText.svelte';
 import Hoverable from '$lib/components/Hoverable.svelte';
-import MultiplayerEditor from '$lib/components/MultiplayerEditor.svelte';
+import MultiplayerEditor, {
+    type EditorStatisticsEvent,
+} from '$lib/components/MultiplayerEditor.svelte';
 import { passages } from '$lib/passages';
 import { clock, multiplayerWSStore, preferences, time } from '$lib/stores';
 import { horizontalSlide } from '$lib/transition';
@@ -21,6 +23,7 @@ export let data: PageData;
 let joinModal: HTMLDialogElement | undefined;
 let inGameModal: HTMLDialogElement | undefined;
 let extend = false;
+let editor: MultiplayerEditor | undefined;
 let gameStore: ReturnType<typeof multiplayerWSStore> | undefined;
 $: userCount = Object.values(data?.game?.users).length;
 // Not sure why but sometimes $page.params.code is undefined
@@ -38,11 +41,7 @@ $: if (
     data.game.state === GameState.Waiting &&
     $preferences?.name
 ) {
-    invalidate(
-        `http${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
-            $page.params.code
-        }/me`,
-    );
+    invalidate(`${gameURL}/${$page.params.code}/me`);
 }
 const goMessageDuration = 500;
 $: countdownTimer =
@@ -121,6 +120,7 @@ function startGame() {
             credentials: 'include',
         },
     );
+    editor?.focus();
 }
 </script>
 
@@ -145,7 +145,7 @@ function startGame() {
             </div>
         </div>
     {:else}
-        <div style="padding: 20px;" transition:slide|local>
+        <div style="padding: 30px;" transition:slide|local>
             {#if data.game?.users}
                 <section class="multiplayer-bar">
                     {#if data.me?.admin && data.game.state === GameState.Waiting}
@@ -187,6 +187,7 @@ function startGame() {
                 <p>Leaderboard</p>
             {:else}
                 <MultiplayerEditor
+                    bind:this={editor}
                     {passage}
                     startTime={data?.game.state === GameState.Playing
                         ? new Date(data?.game.startTime)
