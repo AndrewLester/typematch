@@ -1,17 +1,26 @@
 <script lang="ts">
 import type { PlayerStatistic, PlayerStatisticType } from '$lib/statistics';
 import { ComboChart } from '@carbon/charts-svelte';
+
 import type { ChartTabularData, ScaleTypes } from '@carbon/charts/interfaces';
+import type { ComboChart as ComboChartRaw } from '@carbon/charts';
+import { createEventDispatcher, onMount } from 'svelte';
 
 export let singleplayer = true;
 export let statistics: PlayerStatistic[];
 export let skeleton = false;
 
+const dispatch = createEventDispatcher<{
+    inspect: number;
+}>();
 const singlePlayerOverallStatistics = new Set([
     'wpm',
     'misses',
     'percent',
 ]) as Set<PlayerStatisticType>;
+
+let chart: ComboChartRaw;
+
 $: singlePlayerOverallStatisticsOptions = {
     title: 'Overall Stats',
     color: {
@@ -83,6 +92,21 @@ $: singlePlayerOverallStatisticsOptions = {
     height: '400px',
 };
 
+onMount(() => {
+    chart.services.events.addEventListener('scatter-mouseover', pointMouseOver);
+
+    return () =>
+        chart.services.events.removeEventListener(
+            'scatter-mouseover',
+            pointMouseOver,
+        );
+});
+
+function pointMouseOver(e: any) {
+    const percent = e.detail.datum.extra as number;
+    dispatch('inspect', percent);
+}
+
 function computeSinglePlayerOverallStatistics(statistics: PlayerStatistic[]) {
     const overallStatistics = statistics.filter((statistic) =>
         singlePlayerOverallStatistics.has(statistic.type),
@@ -96,6 +120,7 @@ function computeSinglePlayerOverallStatistics(statistics: PlayerStatistic[]) {
                 group: record.group,
                 [statistic.type === 'wpm' ? 'wpm' : 'value']: record.value,
                 date: record.date,
+                extra: record.percent,
             };
 
             data.push(chartRecord);
@@ -108,6 +133,7 @@ function computeSinglePlayerOverallStatistics(statistics: PlayerStatistic[]) {
 
 {#if singleplayer}
     <ComboChart
+        bind:chart
         data={computeSinglePlayerOverallStatistics(statistics)}
         theme="g100"
         options={singlePlayerOverallStatisticsOptions}

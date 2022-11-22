@@ -14,6 +14,7 @@ export interface TimeseriesData {
     group: string;
     date: string;
     value: number;
+    percent: number;
 }
 
 export interface StatisticsCollector
@@ -58,16 +59,19 @@ export class SingleplayerStatisticsCollector implements StatisticsCollector {
                 date,
                 group: 'WPM',
                 value: editorInput.wpm,
+                percent: editorInput.percent,
             });
             misses.data.push({
                 date,
                 group: 'Misses',
                 value: editorInput.incorrect.length,
+                percent: editorInput.percent,
             });
             percent.data.push({
                 date,
                 group: 'Percent',
                 value: editorInput.percent,
+                percent: editorInput.percent,
             });
 
             return statistics;

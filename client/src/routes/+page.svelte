@@ -12,6 +12,7 @@ let stats: HTMLButtonElement | undefined;
 let statistics: PlayerStatistic[] | undefined = undefined;
 let statsOpen = false;
 let done = false;
+let inspect: number | undefined = undefined;
 
 $: if (!done) {
     statsOpen = false;
@@ -24,7 +25,12 @@ $: if (!done) {
 
 <!-- Delay lets previous element slide a little bit out -->
 <div class="editor-wrapper" in:slide={{ delay: 250 }} out:slide>
-    <SingleplayerEditor passage={data.passage} bind:done bind:statistics />
+    <SingleplayerEditor
+        passage={data.passage}
+        {inspect}
+        bind:done
+        bind:statistics
+    />
 </div>
 
 {#if statistics && done}
@@ -40,7 +46,11 @@ $: if (!done) {
         }}
         class:open={statsOpen}
     >
-        <Statistics {statistics} skeleton={!statsOpen} />
+        <Statistics
+            {statistics}
+            skeleton={!statsOpen}
+            on:inspect={(e) => (inspect = e.detail)}
+        />
     </button>
 {/if}
 

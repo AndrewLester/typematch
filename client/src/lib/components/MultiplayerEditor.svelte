@@ -22,6 +22,7 @@ export let startTime: Date | undefined = undefined;
 export let otherCursors: User[] = [];
 export let position: number = 0;
 export let canRestart = false;
+export let inspect: number | undefined = undefined;
 export let done = false;
 
 const dispatch = createEventDispatcher<{
@@ -184,6 +185,35 @@ function calculateCorrectWordsTyped(str?: string) {
     return correctPrefix ? correctPrefix.length / 5 : 0;
 }
 
+$: sectionIndexLenMap = passageSections.reduce(
+    (prev, cur) =>
+        [...prev, prev.reduce((p, c) => p + c, 0) + cur.length] as any,
+    [],
+);
+
+function isCharacterInspected(
+    sectionIndex: number,
+    i: number,
+    inspect: number | undefined,
+) {
+    if (inspect === undefined || !done) return;
+
+    const inspectIdx = Math.trunc(passage.length * (inspect / 100));
+    if (
+        sectionIndexLenMap[sectionIndex] > inspectIdx &&
+        sectionIndexLenMap[sectionIndex] -
+            passageSections[sectionIndex].length <=
+            inspectIdx
+    ) {
+        const totalIndex =
+            sectionIndexLenMap[sectionIndex] -
+            (passageSections[sectionIndex].length - i);
+        console.log(inspectIdx, totalIndex);
+        return Math.abs(inspectIdx - totalIndex) < 5;
+    }
+    return false;
+}
+
 function restart() {
     elapsed = 0;
     currentSectionNumber = 0;
@@ -263,7 +293,7 @@ export function focus() {
                     <div transition:slide|local>
                         <p class="line">
                             <!-- prettier-ignore -->
-                            {#each section as character, i}<span class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name}>{character}</span>{/each}
+                            {#each section as character, i}<span class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name} class:inspect={isCharacterInspected(sectionIndex, i, inspect)}>{character}</span>{/each}
                         </p>
                     </div>
                 {/if}
@@ -375,6 +405,13 @@ span.carrot.blocked {
 }
 span.carrot.animate {
     animation: blink 1s infinite;
+}
+span.inspect {
+    font-size: 1.75rem;
+    color: rgb(216, 97, 255);
+}
+p.line > span {
+    transition: all 150ms ease;
 }
 span.time {
     font-weight: bold;

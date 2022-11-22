@@ -10,6 +10,7 @@ import MultiplayerEditor from './MultiplayerEditor.svelte';
 export let passage: string;
 export let done = false;
 export let statistics: PlayerStatistic[] | undefined = undefined;
+export let inspect: number | undefined = undefined;
 
 const statisticsCollector = new SingleplayerStatisticsCollector();
 
@@ -24,6 +25,7 @@ let startTime: Date | undefined = undefined;
     canRestart
     {startTime}
     {passage}
+    {inspect}
     bind:done
     on:collect={(e) => statisticsCollector.onCollect(e)}
     on:keydown={(e) => {
