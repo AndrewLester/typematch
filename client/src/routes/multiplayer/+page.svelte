@@ -57,12 +57,3 @@ const setupOnCreateGame: SubmitFunction = ({ data, cancel }) => {
         </div>
     </form>
 </section>
-
-<style>
-section {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-</style>

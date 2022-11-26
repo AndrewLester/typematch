@@ -1,7 +1,7 @@
 <script lang="ts">
 import SingleplayerEditor from '$lib/components/SingleplayerEditor.svelte';
-import Statistics from '$lib/components/Statistics.svelte';
-import type { PlayerStatistic } from '$lib/statistics';
+import Statistics from '$lib/components/SingleplayerStatistics.svelte';
+import type { SingleplayerStatistics } from '$lib/statistics';
 import { tick } from 'svelte';
 import { fade, slide } from 'svelte/transition';
 import type { PageData } from './$types';
@@ -9,7 +9,7 @@ import type { PageData } from './$types';
 export let data: PageData;
 
 let stats: HTMLButtonElement | undefined;
-let statistics: PlayerStatistic[] | undefined = undefined;
+let statistics: SingleplayerStatistics | undefined = undefined;
 let statsOpen = false;
 let done = false;
 let inspect: number | undefined = undefined;
@@ -24,38 +24,50 @@ $: if (!done) {
     <title>TypeMatch</title>
 </svelte:head>
 
-<!-- Delay lets previous element slide a little bit out -->
-<div class="editor-wrapper" in:slide={{ delay: 250 }} out:slide>
-    <SingleplayerEditor
-        passage={data.passage}
-        {inspect}
-        bind:done
-        bind:statistics
-    />
-</div>
-
-{#if statistics && done}
-    <button
-        class="stats"
-        in:fade={{ delay: 300 }}
-        out:fade
-        bind:this={stats}
-        on:click|once={async () => {
-            statsOpen = true;
-            await tick();
-            stats?.scrollIntoView({ behavior: 'smooth' });
-        }}
-        class:open={statsOpen}
-    >
-        <Statistics
-            {statistics}
-            skeleton={!statsOpen}
-            on:inspect={(e) => (inspect = e.detail)}
+<section>
+    <!-- Delay lets previous element slide a little bit out -->
+    <div class="editor-wrapper" in:slide={{ delay: 250 }} out:slide>
+        <SingleplayerEditor
+            passage={data.passage}
+            {inspect}
+            bind:done
+            bind:statistics
         />
-    </button>
-{/if}
+    </div>
+
+    {#if statistics && done}
+        <button
+            class="stats"
+            in:fade={{ delay: 300 }}
+            out:fade
+            bind:this={stats}
+            on:click|once={async () => {
+                statsOpen = true;
+                await tick();
+                stats?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            class:open={statsOpen}
+        >
+            <Statistics
+                {statistics}
+                skeleton={!statsOpen}
+                on:inspect={(e) => (inspect = e.detail)}
+            />
+        </button>
+    {/if}
+</section>
 
 <style>
+section {
+    display: grid;
+    grid-template-columns: 100%;
+    grid-template-rows: 80% auto;
+    justify-content: center;
+    justify-items: center;
+    gap: 15px;
+    height: 100vh;
+}
+
 .editor-wrapper,
 .stats {
     --padding: 0;
@@ -74,7 +86,6 @@ $: if (!done) {
 .stats {
     position: relative;
     grid-row: 2 / 3;
-    padding-bottom: 50px;
     --padding: 30px;
     height: 100%;
     overflow-y: hidden;

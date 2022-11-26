@@ -1,16 +1,8 @@
-<script context="module" lang="ts">
-export type EditorStatisticsEvent = {
-    lcp: string;
-    wpm: number;
-    incorrect: string;
-    percent: number;
-};
-</script>
-
 <script lang="ts">
 import { timerTimeFormat } from '$lib/format';
 import { isNonLetterKey } from '$lib/keyboard';
-import { splitPassage } from '$lib/passages';
+import { countWords, splitPassage } from '$lib/passages';
+import type { EditorStatisticsEvent } from '$lib/statistics';
 import { time } from '$lib/stores';
 import { lcp } from '$lib/string';
 import type { User } from '$lib/types';
@@ -30,6 +22,7 @@ const dispatch = createEventDispatcher<{
     collect: EditorStatisticsEvent;
     restart: undefined;
     keydown: KeyboardEvent;
+    complete: Date;
 }>();
 
 let input: HTMLTextAreaElement | undefined;
@@ -90,7 +83,7 @@ $: if (firstPosition !== null && !loadedFirstPosition && input !== undefined) {
         for (let i = 0; i < passageSections.length; i++) {
             const section = passageSections[i];
             total += section;
-            if (firstPosition <= total.length) {
+            if (firstPosition < total.length) {
                 currentSectionNumber = i;
                 const typed = section.substring(
                     0,
@@ -186,6 +179,7 @@ function handleKeyDown(e: KeyboardEvent) {
         text = '';
         if (++currentSectionNumber === passageSections.length) {
             done = true;
+            dispatch('complete', new Date());
         }
     }
     lastTyped = $time.getTime();
@@ -193,7 +187,7 @@ function handleKeyDown(e: KeyboardEvent) {
 
 function calculateCorrectWordsTyped(str?: string) {
     const correctPrefix = lcp(str || input?.value || '', passage || '');
-    return correctPrefix ? correctPrefix.length / 5 : 0;
+    return correctPrefix ? countWords(correctPrefix) : 0;
 }
 
 function isCharacterInspected(

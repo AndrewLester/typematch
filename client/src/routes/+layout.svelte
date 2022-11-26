@@ -45,14 +45,16 @@ $: singleplayer = $page.url.pathname === '/';
 <style>
 main {
     display: grid;
-    grid-template-columns: 100%;
-    grid-template-rows: 80% auto;
-    justify-content: center;
-    justify-items: center;
-    gap: 15px;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    place-items: center;
     background-color: rgb(31, 31, 31);
     min-height: 100vh;
-    margin: 0px auto;
+    margin: 0 auto;
+}
+
+main > :global(*) {
+    grid-area: 1 / 1 / 2 / 2;
 }
 
 .nav {

@@ -1,14 +1,25 @@
 import { writable, type Readable } from 'svelte/store';
-import type { EditorStatisticsEvent } from './components/MultiplayerEditor.svelte';
+import { countWords } from './passages';
 
-export type PlayerStatisticType = 'wpm' | 'misses' | 'percent';
+export type PlayerStatisticType = 'timeseries' | 'numeric';
 
-export interface PlayerStatistic {
+export interface TimeseriesPlayerStatistic {
     title: string;
     player: string;
-    type: PlayerStatisticType;
+    type: 'timeseries';
     data: TimeseriesData[];
 }
+
+export interface NumericPlayerStatistic {
+    title: string;
+    player: string;
+    type: 'numeric';
+    data: number;
+}
+
+export type PlayerStatistic =
+    | TimeseriesPlayerStatistic
+    | NumericPlayerStatistic;
 
 export interface TimeseriesData {
     group: string;
@@ -17,61 +28,120 @@ export interface TimeseriesData {
     percent: number;
 }
 
-export interface StatisticsCollector
-    extends Readable<PlayerStatistic[] | undefined> {
-    onCollect(event: CustomEvent<EditorStatisticsEvent>): void;
+export type EditorStatisticsEvent = {
+    lcp: string;
+    wpm: number;
+    incorrect: string;
+    percent: number;
+};
+
+export interface StatisticsCollector<Statistics> extends Readable<Statistics> {
+    begin(passage: string, startTime: Date): void;
+    end(endTime: Date): void;
+    onCollect(event: EditorStatisticsEvent): void;
     reset(): void;
 }
 
-export class SingleplayerStatisticsCollector implements StatisticsCollector {
-    store = writable<PlayerStatistic[]>([
-        {
+export type SingleplayerStatistics = {
+    wpm: TimeseriesPlayerStatistic;
+    misses: TimeseriesPlayerStatistic;
+    percent: TimeseriesPlayerStatistic;
+    avgWPM: NumericPlayerStatistic;
+    peakWPM: NumericPlayerStatistic;
+};
+
+export class SingleplayerStatisticsCollector
+    implements StatisticsCollector<SingleplayerStatistics>
+{
+    store = writable<SingleplayerStatistics>({
+        wpm: {
             title: 'WPM',
             player: 'You',
-            type: 'wpm',
+            type: 'timeseries',
             data: [],
         },
-        {
+        misses: {
             title: 'Misses',
             player: 'You',
-            type: 'misses',
+            type: 'timeseries',
             data: [],
         },
-        {
+        percent: {
             title: 'Percent',
             player: 'You',
-            type: 'percent',
+            type: 'timeseries',
             data: [],
         },
-    ]);
+        avgWPM: {
+            title: 'Average WPM',
+            player: 'You',
+            type: 'numeric',
+            data: 0,
+        },
+        peakWPM: {
+            title: 'Peak WPM',
+            player: 'You',
+            type: 'numeric',
+            data: 0,
+        },
+    });
 
-    onCollect(event: CustomEvent<EditorStatisticsEvent>) {
-        const editorInput = event.detail;
+    passage?: string;
+    startTime?: Date;
+    endTime?: Date;
 
-        if (!editorInput.lcp) return;
+    begin(passage: string, startTime: Date) {
+        this.passage = passage;
+        this.startTime = startTime;
+    }
+
+    end(endTime: Date) {
+        if (!this.passage || !this.startTime) return;
+
+        this.endTime = endTime;
 
         this.store.update((statistics) => {
-            const [wpm, misses, percent] = statistics;
+            const words = countWords(this.passage!);
+            const time =
+                (this.endTime!.getTime() - this.startTime!.getTime()) /
+                1000 /
+                60;
+
+            statistics.avgWPM.data = words / time;
+            statistics.peakWPM.data = statistics.wpm.data.reduce(
+                (prev, cur) => (prev > cur.value ? prev : cur.value),
+                0,
+            );
+
+            return statistics;
+        });
+    }
+
+    onCollect(event: EditorStatisticsEvent) {
+        if (!event.lcp) return;
+
+        this.store.update((statistics) => {
+            const { wpm, misses, percent } = statistics;
 
             const date = new Date().toISOString();
 
             wpm.data.push({
                 date,
                 group: 'WPM',
-                value: editorInput.wpm,
-                percent: editorInput.percent,
+                value: event.wpm,
+                percent: event.percent,
             });
             misses.data.push({
                 date,
                 group: 'Misses',
-                value: editorInput.incorrect.length,
-                percent: editorInput.percent,
+                value: event.incorrect.length,
+                percent: event.percent,
             });
             percent.data.push({
                 date,
                 group: 'Percent',
-                value: editorInput.percent,
-                percent: editorInput.percent,
+                value: event.percent,
+                percent: event.percent,
             });
 
             return statistics;
@@ -80,8 +150,8 @@ export class SingleplayerStatisticsCollector implements StatisticsCollector {
 
     reset() {
         this.store.update((statistics) => {
-            for (const statistic of statistics) {
-                statistic.data = [];
+            for (const statistic of Object.values(statistics)) {
+                statistic.data = statistic.type === 'timeseries' ? [] : 0;
             }
 
             return statistics;

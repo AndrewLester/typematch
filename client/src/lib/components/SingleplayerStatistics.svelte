@@ -1,23 +1,21 @@
 <script lang="ts">
-import type { PlayerStatistic, PlayerStatisticType } from '$lib/statistics';
+import type {
+    SingleplayerStatistics,
+    TimeseriesPlayerStatistic,
+} from '$lib/statistics';
 import { ComboChart } from '@carbon/charts-svelte';
 
-import type { ChartTabularData, ScaleTypes } from '@carbon/charts/interfaces';
 import type { ComboChart as ComboChartRaw } from '@carbon/charts';
+import type { ChartTabularData, ScaleTypes } from '@carbon/charts/interfaces';
 import { createEventDispatcher, onMount } from 'svelte';
 
-export let singleplayer = true;
-export let statistics: PlayerStatistic[];
+export let statistics: SingleplayerStatistics;
 export let skeleton = false;
 
 const dispatch = createEventDispatcher<{
     inspect: number;
 }>();
-const singlePlayerOverallStatistics = new Set([
-    'wpm',
-    'misses',
-    'percent',
-]) as Set<PlayerStatisticType>;
+const singlePlayerOverallStatistics = new Set(['WPM', 'Misses', 'Percent']);
 
 let chart: ComboChartRaw;
 
@@ -54,7 +52,7 @@ $: singlePlayerOverallStatisticsOptions = {
         },
         left: {
             title: 'WPM',
-            mapsTo: 'wpm',
+            mapsTo: 'WPM',
             scaleType: 'linear' as ScaleTypes.LINEAR,
         },
         right: {
@@ -107,10 +105,12 @@ function pointMouseOver(e: any) {
     dispatch('inspect', percent);
 }
 
-function computeSinglePlayerOverallStatistics(statistics: PlayerStatistic[]) {
-    const overallStatistics = statistics.filter((statistic) =>
-        singlePlayerOverallStatistics.has(statistic.type),
-    );
+function computeSinglePlayerOverallStatistics(
+    statistics: SingleplayerStatistics,
+) {
+    const overallStatistics = Object.values(statistics).filter((statistic) =>
+        singlePlayerOverallStatistics.has(statistic.title),
+    ) as TimeseriesPlayerStatistic[];
 
     const data: ChartTabularData = [];
 
@@ -118,7 +118,7 @@ function computeSinglePlayerOverallStatistics(statistics: PlayerStatistic[]) {
         for (const record of statistic.data) {
             const chartRecord = {
                 group: record.group,
-                [statistic.type === 'wpm' ? 'wpm' : 'value']: record.value,
+                [statistic.title === 'WPM' ? 'WPM' : 'value']: record.value,
                 date: record.date,
                 extra: record.percent,
             };
@@ -131,11 +131,54 @@ function computeSinglePlayerOverallStatistics(statistics: PlayerStatistic[]) {
 }
 </script>
 
-{#if singleplayer}
-    <ComboChart
-        bind:chart
-        data={computeSinglePlayerOverallStatistics(statistics)}
-        theme="g100"
-        options={singlePlayerOverallStatisticsOptions}
-    />
-{:else}{/if}
+<ComboChart
+    bind:chart
+    data={computeSinglePlayerOverallStatistics(statistics)}
+    theme="g100"
+    options={singlePlayerOverallStatisticsOptions}
+/>
+
+<div class="statistics">
+    <div class="statistic">
+        <strong>{Math.round(statistics.avgWPM.data)}</strong>
+        <span>Avg WPM</span>
+    </div>
+    <div class="statistic">
+        <strong>{Math.round(statistics.peakWPM.data)}</strong>
+        <span>Peak WPM</span>
+    </div>
+</div>
+
+<style>
+.statistics {
+    display: flex;
+    flex-flow: row wrap;
+    gap: 50px;
+    align-items: center;
+    justify-content: center;
+    margin-block: 50px;
+}
+
+.statistic {
+    display: flex;
+    flex-flow: column nowrap;
+    text-align: center;
+    align-items: center;
+    gap: 5px;
+    border-radius: 5px;
+    transition: all 250ms ease;
+    padding: 5px;
+}
+
+.statistic:hover {
+    background-color: rgb(42, 42, 42);
+}
+
+.statistic > strong {
+    font-size: 2.25rem;
+}
+
+.statistic > span {
+    color: rgb(200, 200, 200);
+}
+</style>

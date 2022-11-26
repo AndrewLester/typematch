@@ -8,9 +8,7 @@ import { PUBLIC_WORKER_HOST } from '$env/static/public';
 import { gameURL } from '$lib/api';
 import Countdown from '$lib/components/Countdown.svelte';
 import Hoverable from '$lib/components/Hoverable.svelte';
-import MultiplayerEditor, {
-    type EditorStatisticsEvent,
-} from '$lib/components/MultiplayerEditor.svelte';
+import MultiplayerEditor from '$lib/components/MultiplayerEditor.svelte';
 import { passages } from '$lib/passages';
 import { clock, multiplayerWSStore, preferences, time } from '$lib/stores';
 import { horizontalSlide } from '$lib/transition';
@@ -256,7 +254,7 @@ function startGame() {
     color: rgb(163, 163, 163);
 }
 .select-wrapper {
-    width: 100%;
+    width: 80%;
     transition: all 250ms ease;
     margin-left: 0;
 }
@@ -268,7 +266,6 @@ h1 {
 }
 .select-wrapper.extend {
     width: 100vw;
-    margin-left: calc(-1 * calc(calc(100vw - 90ch) / 2));
 }
 .multiplayer-bar {
     height: 75px;
