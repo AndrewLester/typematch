@@ -36,6 +36,7 @@ const setupOnCreateGame: SubmitFunction = ({ data, cancel }) => {
 </script>
 
 <!-- Delay lets previous element slide a little bit out -->
+
 <section in:slide={{ delay: 250 }} out:slide>
     <header>
         <h1>Multiplayer</h1>
@@ -43,11 +44,13 @@ const setupOnCreateGame: SubmitFunction = ({ data, cancel }) => {
     <p>Create a multiplayer room with a unique code to play with friends.</p>
     <form method="post" action="?/createGame" use:enhance={setupOnCreateGame}>
         <label for="name">Enter your name:</label>
+        <!-- svelte-ignore a11y-autofocus -->
         <input
             id="name"
             type="text"
             placeholder="Name"
             name="name"
+            autofocus
             required
             minlength="1"
             maxlength="40"

@@ -15,7 +15,7 @@ let done = false;
 let inspect: number | undefined = undefined;
 
 $: if (!done) {
-    statsOpen = false;
+    // statsOpen = false;
     inspect = undefined;
 }
 </script>
@@ -24,18 +24,24 @@ $: if (!done) {
     <title>TypeMatch</title>
 </svelte:head>
 
-<section>
-    <!-- Delay lets previous element slide a little bit out -->
-    <div class="editor-wrapper" in:slide={{ delay: 250 }} out:slide>
-        <SingleplayerEditor
-            passage={data.passage}
-            {inspect}
-            bind:done
-            bind:statistics
-        />
-    </div>
+<!-- Delay lets previous element slide a little bit out -->
+<section class="editor-wrapper" in:slide={{ delay: 250 }} out:slide>
+    <SingleplayerEditor
+        passage={data.passage}
+        {inspect}
+        bind:done
+        bind:statistics
+    />
+</section>
 
-    {#if statistics && done}
+{#if statistics && done}
+    <div
+        class="stats-wrapper"
+        class:open={statsOpen}
+        in:slide={{ delay: 250 }}
+        out:fade
+        on:outroend={() => (statsOpen = false)}
+    >
         <button
             class="stats"
             in:fade={{ delay: 300 }}
@@ -46,7 +52,6 @@ $: if (!done) {
                 await tick();
                 stats?.scrollIntoView({ behavior: 'smooth' });
             }}
-            class:open={statsOpen}
         >
             <Statistics
                 {statistics}
@@ -54,64 +59,55 @@ $: if (!done) {
                 on:inspect={(e) => (inspect = e.detail)}
             />
         </button>
-    {/if}
-</section>
+    </div>
+{/if}
 
 <style>
-section {
-    display: grid;
-    grid-template-columns: 100%;
-    grid-template-rows: 80% auto;
-    justify-content: center;
-    justify-items: center;
-    gap: 15px;
-    height: 100vh;
-}
-
 .editor-wrapper,
-.stats {
-    --padding: 0;
+.stats-wrapper {
+    --padding: 30px;
     width: calc(85ch + calc(2 * var(--padding)));
+    padding: var(--padding);
+    margin-inline: auto;
 }
 
-.editor-wrapper {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    --padding: 30px;
-    padding: var(--padding);
+.stats-wrapper {
+    position: relative;
+    margin-top: -100px;
+    height: 100px;
+    overflow: hidden;
+    padding-top: 0;
+}
+
+.stats-wrapper.open {
+    overflow: visible;
+}
+
+.stats-wrapper.open .stats {
+    cursor: default;
 }
 
 .stats {
-    position: relative;
-    grid-row: 2 / 3;
-    --padding: 30px;
-    height: 100%;
-    overflow-y: hidden;
+    width: 100%;
     text-align: unset;
     transition: all 250ms ease;
     border: none;
+    appearance: none;
 }
 
-.stats:not(.open)::after {
+.stats-wrapper:not(.open)::after {
     content: 'Click to see statistics';
     position: absolute;
     display: grid;
     place-items: center;
-    --scale: 50px;
     top: 0;
     font-size: 2rem;
-    left: calc(-1 * calc(var(--scale) / 2));
+    left: calc(-1 * calc(var(--padding) / 2));
     height: 100%;
-    width: calc(100% + var(--scale));
+    width: 100%;
+    overflow: hidden;
     background-image: linear-gradient(transparent 5%, rgb(60, 60, 60));
     backdrop-filter: blur(2px);
-}
-
-.stats.open {
-    height: auto;
-    overflow: unset;
-    cursor: default;
+    pointer-events: none;
 }
 </style>

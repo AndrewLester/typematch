@@ -118,91 +118,90 @@ function startGame() {
             credentials: 'include',
         },
     );
-    editor?.focus();
+    editor?.focus?.();
 }
 </script>
 
-<section
-    in:slide
-    out:slide={{ delay: 250 }}
-    on:introend={() => (extend = true)}
-    on:outrostart={() => (extend = false)}
->
-    {#if !passage}
-        <div transition:slide|local class="select-wrapper" class:extend>
-            <h1>Select a passage</h1>
+{#if !passage}
+    <section
+        in:slide={{ delay: 250 }}
+        out:slide
+        class="select-wrapper"
+        class:extend
+        on:introend={() => (extend = true)}
+        on:outrostart={() => (extend = false)}
+    >
+        <h1>Select a passage</h1>
 
-            <div class="passages">
-                {#each passages as availablePassage, i}
-                    <button class="passage" on:click={() => selectPassage(i)}
-                        ><span class="passage-header"
-                            >~{Math.round(availablePassage.length / 5)} words</span
-                        >{availablePassage}</button
+        <div class="passages">
+            {#each passages as availablePassage, i}
+                <button class="passage" on:click={() => selectPassage(i)}
+                    ><span class="passage-header"
+                        >~{Math.round(availablePassage.length / 5)} words</span
+                    >{availablePassage}</button
+                >
+            {/each}
+        </div>
+    </section>
+{:else}
+    <section class="game" in:slide={{ delay: 250 }} out:slide>
+        {#if data.game?.users}
+            <section class="multiplayer-bar">
+                {#if data.me?.admin && data.game.state === GameState.Waiting}
+                    <button
+                        on:click={startGame}
+                        transition:horizontalSlide|local
+                        class="start-game">Start game</button
                     >
-                {/each}
-            </div>
-        </div>
-    {:else}
-        <div style="padding: 30px;" transition:slide|local>
-            {#if data.game?.users}
-                <section class="multiplayer-bar">
-                    {#if data.me?.admin && data.game.state === GameState.Waiting}
-                        <button
-                            on:click={startGame}
-                            transition:horizontalSlide|local
-                            class="start-game">Start game</button
+                {/if}
+                {#each Object.values(data.game.users) as user, i (user.id)}
+                    <Hoverable let:hovering>
+                        <div
+                            class="player"
+                            class:me={user.id === data.me?.id}
+                            class:offline={!user.connected && browser}
                         >
-                    {/if}
-                    {#each Object.values(data.game.users) as user, i (user.id)}
-                        <Hoverable let:hovering>
-                            <div
-                                class="player"
-                                class:me={user.id === data.me?.id}
-                                class:offline={!user.connected && browser}
-                            >
-                                <span class="player-name">{user.name}</span>
-                                {#if data?.game.state === GameState.Waiting || hovering}<span
-                                        class="player-ping"
-                                        transition:horizontalSlide|local
-                                        >({user.ping}ms)</span
-                                    >{/if}
-                                {#if i !== userCount - 1}&mdash;{/if}
-                            </div>
-                        </Hoverable>
-                    {/each}
-                    {#if countdownTimer && $countdownTimer !== null}
-                        {@const countdown =
-                            countdownTime -
-                            ($countdownTimer.getTime() -
-                                data.game.countdownTime)}
-                        <div class="countdown-wrapper">
-                            <Countdown {countdown} totalTime={countdownTime} />
+                            <span class="player-name">{user.name}</span>
+                            {#if data?.game.state === GameState.Waiting || hovering}<span
+                                    class="player-ping"
+                                    transition:horizontalSlide|local
+                                    >({user.ping}ms)</span
+                                >{/if}
+                            {#if i !== userCount - 1}&mdash;{/if}
                         </div>
-                    {/if}
-                </section>
-            {/if}
-            {#if data?.game.state == GameState.Finished}
-                <p>Leaderboard</p>
-            {:else}
-                <MultiplayerEditor
-                    bind:this={editor}
-                    {passage}
-                    startTime={data?.game.state === GameState.Playing
-                        ? new Date(data?.game.startTime)
-                        : undefined}
-                    {position}
-                    on:keydown={(e) => {
-                        if (data?.game.state !== GameState.Playing) {
-                            e.preventDefault();
-                        }
-                    }}
-                    otherCursors={otherUsers}
-                    on:input={onInput}
-                />
-            {/if}
-        </div>
-    {/if}
-</section>
+                    </Hoverable>
+                {/each}
+                {#if countdownTimer && $countdownTimer !== null}
+                    {@const countdown =
+                        countdownTime -
+                        ($countdownTimer.getTime() - data.game.countdownTime)}
+                    <div class="countdown-wrapper">
+                        <Countdown {countdown} totalTime={countdownTime} />
+                    </div>
+                {/if}
+            </section>
+        {/if}
+        {#if data?.game.state == GameState.Finished}
+            <p>Leaderboard</p>
+        {:else}
+            <MultiplayerEditor
+                bind:this={editor}
+                {passage}
+                startTime={data?.game.state === GameState.Playing
+                    ? new Date(data?.game.startTime)
+                    : undefined}
+                {position}
+                on:keydown={(e) => {
+                    if (data?.game.state !== GameState.Playing) {
+                        e.preventDefault();
+                    }
+                }}
+                otherCursors={otherUsers}
+                on:input={onInput}
+            />
+        {/if}
+    </section>
+{/if}
 
 <dialog bind:this={joinModal} class="modal">
     <h1>Join Game</h1>
@@ -221,6 +220,13 @@ function startGame() {
 </dialog>
 
 <style>
+.game,
+.stats {
+    --padding: 30px;
+    padding: var(--padding);
+    width: calc(85ch + calc(2 * var(--padding)));
+    margin-inline: auto;
+}
 .modal {
     top: 50%;
     left: 50%;
@@ -254,9 +260,9 @@ function startGame() {
     color: rgb(163, 163, 163);
 }
 .select-wrapper {
-    width: 80%;
     transition: all 250ms ease;
     margin-left: 0;
+    width: 80vw;
 }
 .start-game {
     margin-right: 10px;

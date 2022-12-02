@@ -38,33 +38,36 @@ $: singleplayer = $page.url.pathname === '/';
     </svg>
 </a>
 
-<main data-sveltekit-prefetch>
+<main>
     <slot />
 </main>
 
 <style>
 main {
+    position: relative;
     display: grid;
-    grid-template-columns: 1fr;
     grid-template-rows: 1fr;
     place-items: center;
-    background-color: rgb(31, 31, 31);
     min-height: 100vh;
-    margin: 0 auto;
+    width: 100%;
 }
 
-main > :global(*) {
+main > :global(section) {
     grid-area: 1 / 1 / 2 / 2;
 }
 
-.nav {
+.nav,
+.github {
     position: fixed;
+    z-index: 1;
+}
+
+.nav {
     top: 20px;
     left: 20px;
 }
 
 .github {
-    position: fixed;
     display: flex;
     top: 20px;
     right: 40px;
