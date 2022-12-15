@@ -1,9 +1,10 @@
 :root {
     --header-height: 50px;
-    --font-body: 'Inter';
-    --font-heading: 'Raleway';
+    --font-body: 'Inter', sans-serif;
+    --font-heading: 'Raleway', sans-serif;
     --transition-duration: 250ms;
     --color-background: rgb(31, 31, 31);
+    font-size: 120%;
 }
 
 *,
@@ -55,6 +56,7 @@ a.button {
     padding: 0.5em;
     font-size: 1rem;
     text-decoration: none;
+    font-weight: bold;
 }
 
 :where(button, a.button):disabled {

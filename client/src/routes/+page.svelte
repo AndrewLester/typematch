@@ -1,6 +1,7 @@
 <script lang="ts">
-import SingleplayerEditor from '$lib/components/SingleplayerEditor.svelte';
-import Statistics from '$lib/components/SingleplayerStatistics.svelte';
+import { beforeNavigate } from '$app/navigation';
+import Singleplayer from '$lib/components/Singleplayer.svelte';
+import SingleplayerStatisticsView from '$lib/components/SingleplayerStatisticsView.svelte';
 import type { SingleplayerStatistics } from '$lib/statistics';
 import { tick } from 'svelte';
 import { fade, slide } from 'svelte/transition';
@@ -13,9 +14,9 @@ let statistics: SingleplayerStatistics | undefined = undefined;
 let statsOpen = false;
 let done = false;
 let inspect: number | undefined = undefined;
+let startTime: Date | undefined = undefined;
 
 $: if (!done) {
-    // statsOpen = false;
     inspect = undefined;
 }
 </script>
@@ -26,11 +27,12 @@ $: if (!done) {
 
 <!-- Delay lets previous element slide a little bit out -->
 <section class="editor-wrapper" in:slide={{ delay: 250 }} out:slide>
-    <SingleplayerEditor
+    <Singleplayer
         passage={data.passage}
         {inspect}
         bind:done
         bind:statistics
+        bind:startTime
     />
 </section>
 
@@ -39,13 +41,11 @@ $: if (!done) {
         class="stats-wrapper"
         class:open={statsOpen}
         in:slide={{ delay: 250 }}
-        out:fade
+        out:slide
         on:outroend={() => (statsOpen = false)}
     >
         <button
             class="stats"
-            in:fade={{ delay: 300 }}
-            out:fade
             bind:this={stats}
             on:click|once={async () => {
                 statsOpen = true;
@@ -53,8 +53,9 @@ $: if (!done) {
                 stats?.scrollIntoView({ behavior: 'smooth' });
             }}
         >
-            <Statistics
+            <SingleplayerStatisticsView
                 {statistics}
+                startTime={startTime?.getTime() ?? 0}
                 skeleton={!statsOpen}
                 on:inspect={(e) => (inspect = e.detail)}
             />
@@ -66,15 +67,15 @@ $: if (!done) {
 .editor-wrapper,
 .stats-wrapper {
     --padding: 30px;
-    width: calc(85ch + calc(2 * var(--padding)));
+    width: calc(80ch + calc(2 * var(--padding)));
     padding: var(--padding);
     margin-inline: auto;
 }
 
 .stats-wrapper {
     position: relative;
-    margin-top: -100px;
-    height: 100px;
+    margin-top: -125px;
+    height: 125px;
     overflow: hidden;
     padding-top: 0;
 }

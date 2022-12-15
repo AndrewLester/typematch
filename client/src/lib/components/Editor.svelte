@@ -3,7 +3,7 @@ import { timerTimeFormat } from '$lib/format';
 import { isNonLetterKey } from '$lib/keyboard';
 import { countWords, splitPassage } from '$lib/passages';
 import type { EditorStatisticsEvent } from '$lib/statistics';
-import { time } from '$lib/stores';
+import { clock } from '$lib/stores';
 import { lcp } from '$lib/string';
 import type { User } from '$lib/types';
 import { createEventDispatcher } from 'svelte';
@@ -11,6 +11,7 @@ import { fade, slide } from 'svelte/transition';
 
 export let passage: string;
 export let startTime: Date | undefined = undefined;
+export let endTime: Date | undefined = undefined;
 export let otherCursors: User[] = [];
 export let position: number = 0;
 export let canRestart = false;
@@ -26,7 +27,8 @@ const dispatch = createEventDispatcher<{
 }>();
 
 let input: HTMLTextAreaElement | undefined;
-let elapsed = 0;
+let elapsed =
+    startTime && endTime ? endTime.getTime() - startTime.getTime() : 0;
 
 let focused = true;
 let currentSectionNumber = 0;
@@ -38,6 +40,7 @@ let wordsTyped = 0;
 let prevWordsTyped = 0;
 let firstPosition: number | null = null;
 let loadedFirstPosition = false;
+let time = clock(1000);
 
 const getText = () => text;
 const getCurrentWordsTyped = () => wordsTyped;
@@ -47,6 +50,7 @@ $: editable = started && !done;
 $: passageSections = passage ? splitPassage(passage) : [];
 $: currentSection = passageSections[currentSectionNumber];
 
+$: if (editable) time = clock(1000);
 $: if (editable) {
     elapsed = $time.getTime() - startTime!.getTime();
 }
@@ -55,12 +59,11 @@ $: if (elapsed) {
     wordsTyped = calculateCorrectWordsTyped();
 }
 $: if (elapsed) wpm = Math.max((wordsTyped - prevWordsTyped) / (1 / 60), 0);
-$: if (elapsed) smoothWPM = (5 * smoothWPM + wpm) / 6;
+$: if (elapsed) smoothWPM = (2 * smoothWPM + wpm) / 3;
 $: if (elapsed) {
     const commonPrefix = lcp(input?.value ?? '', passage ?? '');
     dispatch('collect', {
         lcp: commonPrefix,
-        incorrect: getText().slice(commonPrefix.length),
         wpm: smoothWPM,
         percent: Math.trunc((commonPrefix.length / passage.length) * 100),
     });
@@ -120,7 +123,13 @@ $: sectionViewEnd = done
       );
 
 function handleKeyDown(e: KeyboardEvent) {
-    if (e.ctrlKey || e.metaKey) {
+    // TODO: Remove all handling of text input by user from key down... bind to text area
+    // text and use key down soley for cancelation
+    if (
+        e.ctrlKey ||
+        e.metaKey ||
+        (e.repeat && e.key !== ' ' && e.key !== 'Backspace')
+    ) {
         return;
     }
 
@@ -166,8 +175,7 @@ function handleKeyDown(e: KeyboardEvent) {
         if (commonPrefix.length < (input?.value + e.key).length) {
             dispatch('collect', {
                 lcp: commonPrefix,
-                incorrect: text.slice(commonPrefix.length),
-                wpm: smoothWPM,
+                incorrect: (input?.value + e.key).slice(commonPrefix.length),
                 percent: Math.trunc(
                     (commonPrefix.length / passage.length) * 100,
                 ),
@@ -226,7 +234,7 @@ export function focus() {
 </script>
 
 <section>
-    <h1>
+    <h1 class="metadata">
         <span class="time">
             {startTime ? timerTimeFormat(elapsed) : '0:00'}
         </span>
@@ -241,9 +249,6 @@ export function focus() {
             >
         {/if}
     </h1>
-    <h2>
-        WPM: {smoothWPM.toFixed(0)}
-    </h2>
 
     <!-- Safe to disable since keyboard navigating to the text area focuses -->
     <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -289,13 +294,13 @@ export function focus() {
                 {/if}
             </div>
         {/each}
-        {#each otherCursors as cursor}
+        <!-- {#each otherCursors as cursor}
             {#if cursor.position > (passage?.indexOf(passageSections[sectionViewEnd - 1]) ?? 20000) + (passageSections[sectionViewEnd - 1]?.length ?? 2000)}
                 <p>{cursor.name} past</p>
             {:else if cursor.position >= passage.length}
                 <p>{cursor.name} done</p>
             {/if}
-        {/each}
+        {/each} -->
     </div>
 
     <!-- svelte-ignore a11y-autofocus -->
@@ -313,17 +318,12 @@ export function focus() {
 </section>
 
 <style>
-h1,
-h2 {
+.metadata {
     color: white;
     font-weight: normal;
     font-family: Arial, Helvetica, sans-serif;
-    margin-bottom: 5px;
+    margin-bottom: 25px;
     font-size: 1.17rem;
-}
-h2 {
-    margin-bottom: 20px;
-    font-size: 1rem;
 }
 textarea {
     resize: none;
@@ -343,6 +343,8 @@ p {
     min-height: 20px;
     font-size: 1.5rem;
     font-kerning: none;
+    --line-height: 1.2;
+    line-height: var(--line-height);
     cursor: text;
 }
 span.letter {
@@ -451,10 +453,15 @@ div.line {
 div.wrapper::before {
     content: '→';
     position: absolute;
-    left: -30px;
+    left: -35px;
     top: 0px;
+    --start-height: 0.45em;
+    --line-height: 1.41em;
     transform: translateY(
-        calc(0.9ex + calc(var(--current-section-number) * 2.675ex))
+        calc(
+            var(--start-height) +
+                calc(var(--current-section-number) * var(--line-height))
+        )
     );
     font-size: 1.5rem;
     color: white;
@@ -469,8 +476,9 @@ div.wrapper.done::before {
     /* One last past the end minus the translate of one line (the last line) */
     transform: translateY(
         calc(
-            0.9ex + calc(calc(var(--current-section-number) * 2.675ex)) -
-                3.575ex
+            var(--start-height) +
+                calc(calc(var(--current-section-number) * var(--line-height))) -
+                calc(var(--start-height) + var(--line-height))
         )
     );
 }
@@ -497,11 +505,11 @@ div.wrapper.focused:not(.done)::before {
         color: white;
     }
     99% {
-        transform: translateY(1.9rem);
+        transform: translateY(calc(1em * var(--line-height)));
         opacity: 1;
     }
     100% {
-        transform: translateY(1.9rem);
+        transform: translateY(calc(1em * var(--line-height)));
         opacity: 0;
         color: rgb(217, 255, 228);
     }

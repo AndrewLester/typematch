@@ -17,6 +17,7 @@ $: singleplayer = $page.url.pathname === '/';
         transition:fade
         href={singleplayer ? '/multiplayer' : '/'}
         class="button nav"
+        data-sveltekit-noscroll
     >
         {#if singleplayer}
             Multiplayer

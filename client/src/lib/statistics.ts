@@ -1,4 +1,4 @@
-import { writable, type Readable } from 'svelte/store';
+import { derived, writable, type Readable, type Writable } from 'svelte/store';
 import { countWords } from './passages';
 
 export type PlayerStatisticType = 'timeseries' | 'numeric';
@@ -30,8 +30,8 @@ export interface TimeseriesData {
 
 export type EditorStatisticsEvent = {
     lcp: string;
-    wpm: number;
-    incorrect: string;
+    wpm?: number;
+    incorrect?: string;
     percent: number;
 };
 
@@ -50,45 +50,56 @@ export type SingleplayerStatistics = {
     peakWPM: NumericPlayerStatistic;
 };
 
+export type MultiplayerStatistics = Record<string, SingleplayerStatistics>;
+
+const defaultSingleplayeStats: SingleplayerStatistics = {
+    wpm: {
+        title: 'WPM',
+        player: 'You',
+        type: 'timeseries',
+        data: [],
+    },
+    misses: {
+        title: 'Misses',
+        player: 'You',
+        type: 'timeseries',
+        data: [],
+    },
+    percent: {
+        title: 'Percent',
+        player: 'You',
+        type: 'timeseries',
+        data: [],
+    },
+    avgWPM: {
+        title: 'Average WPM',
+        player: 'You',
+        type: 'numeric',
+        data: 0,
+    },
+    peakWPM: {
+        title: 'Peak WPM',
+        player: 'You',
+        type: 'numeric',
+        data: 0,
+    },
+};
+
 export class SingleplayerStatisticsCollector
     implements StatisticsCollector<SingleplayerStatistics>
 {
-    store = writable<SingleplayerStatistics>({
-        wpm: {
-            title: 'WPM',
-            player: 'You',
-            type: 'timeseries',
-            data: [],
-        },
-        misses: {
-            title: 'Misses',
-            player: 'You',
-            type: 'timeseries',
-            data: [],
-        },
-        percent: {
-            title: 'Percent',
-            player: 'You',
-            type: 'timeseries',
-            data: [],
-        },
-        avgWPM: {
-            title: 'Average WPM',
-            player: 'You',
-            type: 'numeric',
-            data: 0,
-        },
-        peakWPM: {
-            title: 'Peak WPM',
-            player: 'You',
-            type: 'numeric',
-            data: 0,
-        },
-    });
-
+    store: Writable<SingleplayerStatistics>;
     passage?: string;
     startTime?: Date;
     endTime?: Date;
+    subscribe: typeof this.store.subscribe;
+
+    constructor(
+        initialValue: SingleplayerStatistics = defaultSingleplayeStats,
+    ) {
+        this.store = writable<SingleplayerStatistics>(initialValue);
+        this.subscribe = this.store.subscribe;
+    }
 
     begin(passage: string, startTime: Date) {
         this.passage = passage;
@@ -125,24 +136,30 @@ export class SingleplayerStatisticsCollector
 
             const date = new Date().toISOString();
 
-            wpm.data.push({
-                date,
-                group: 'WPM',
-                value: event.wpm,
-                percent: event.percent,
-            });
-            misses.data.push({
-                date,
-                group: 'Misses',
-                value: event.incorrect.length,
-                percent: event.percent,
-            });
-            percent.data.push({
-                date,
-                group: 'Percent',
-                value: event.percent,
-                percent: event.percent,
-            });
+            if (event.wpm) {
+                wpm.data.push({
+                    date,
+                    group: 'WPM',
+                    value: event.wpm,
+                    percent: event.percent,
+                });
+
+                percent.data.push({
+                    date,
+                    group: 'Percent',
+                    value: event.percent,
+                    percent: event.percent,
+                });
+            }
+
+            if (event.incorrect) {
+                misses.data.push({
+                    date,
+                    group: 'Misses',
+                    value: event.incorrect.length,
+                    percent: event.percent,
+                });
+            }
 
             return statistics;
         });
@@ -157,6 +174,4 @@ export class SingleplayerStatisticsCollector
             return statistics;
         });
     }
-
-    subscribe = this.store.subscribe;
 }

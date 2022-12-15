@@ -5,20 +5,19 @@ import {
     SingleplayerStatisticsCollector,
     type SingleplayerStatistics,
 } from '$lib/statistics';
-import MultiplayerEditor from './MultiplayerEditor.svelte';
+import Editor from './Editor.svelte';
 
 export let passage: string;
 export let done = false;
 export let statistics: SingleplayerStatistics | undefined = undefined;
 export let inspect: number | undefined = undefined;
+export let startTime: Date | undefined = undefined;
 
 const statisticsCollector = new SingleplayerStatisticsCollector();
 
 $: if ($statisticsCollector) {
     statistics = $statisticsCollector;
 }
-
-let startTime: Date | undefined = undefined;
 
 function isStartKey(key: string) {
     return !isNonLetterKey(key);
@@ -36,7 +35,7 @@ function handleKeyDown(e: CustomEvent<KeyboardEvent>) {
 }
 </script>
 
-<MultiplayerEditor
+<Editor
     canRestart
     {startTime}
     {passage}
@@ -52,4 +51,4 @@ function handleKeyDown(e: CustomEvent<KeyboardEvent>) {
     }}
 >
     <svelte:fragment slot="waiting">Ready? Begin typing</svelte:fragment>
-</MultiplayerEditor>
+</Editor>

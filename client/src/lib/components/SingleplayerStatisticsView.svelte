@@ -9,6 +9,7 @@ import type { ComboChart as ComboChartRaw } from '@carbon/charts';
 import type { ChartTabularData, ScaleTypes } from '@carbon/charts/interfaces';
 import { createEventDispatcher, onMount } from 'svelte';
 
+export let startTime: number;
 export let statistics: SingleplayerStatistics;
 export let skeleton = false;
 
@@ -69,7 +70,7 @@ $: singlePlayerOverallStatisticsOptions = {
             correspondingDatasets: ['WPM'],
         },
         {
-            type: 'line',
+            type: 'scatter',
             options: {},
             correspondingDatasets: ['Misses'],
         },
@@ -119,7 +120,7 @@ function computeSinglePlayerOverallStatistics(
             const chartRecord = {
                 group: record.group,
                 [statistic.title === 'WPM' ? 'WPM' : 'value']: record.value,
-                date: record.date,
+                date: new Date(new Date(record.date).getTime() - startTime),
                 extra: record.percent,
             };
 

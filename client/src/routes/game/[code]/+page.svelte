@@ -1,28 +1,42 @@
 <script lang="ts">
 import { browser, dev } from '$app/environment';
 
-import { invalidate } from '$app/navigation';
+import { beforeNavigate, invalidate } from '$app/navigation';
 
 import { page } from '$app/stores';
 import { PUBLIC_WORKER_HOST } from '$env/static/public';
 import { gameURL } from '$lib/api';
+import { sleep } from '$lib/async';
 import Countdown from '$lib/components/Countdown.svelte';
 import Hoverable from '$lib/components/Hoverable.svelte';
-import MultiplayerEditor from '$lib/components/MultiplayerEditor.svelte';
-import { passages } from '$lib/passages';
+import Multiplayer from '$lib/components/Multiplayer.svelte';
+import MultiplayerStatisticsView from '$lib/components/MultiplayerStatisticsView.svelte';
+import { countWords, passages } from '$lib/passages';
+import type { SingleplayerStatistics } from '$lib/statistics';
 import { clock, multiplayerWSStore, preferences, time } from '$lib/stores';
 import { horizontalSlide } from '$lib/transition';
 import { countdownTime, GameState } from '$lib/types';
-import { onMount } from 'svelte';
-import { slide } from 'svelte/transition';
+import { onMount, tick } from 'svelte';
+import { fade, slide } from 'svelte/transition';
 import type { PageData } from './$types';
 
 export let data: PageData;
+
 let joinModal: HTMLDialogElement | undefined;
 let inGameModal: HTMLDialogElement | undefined;
 let extend = false;
-let editor: MultiplayerEditor | undefined;
+let multiplayer: Multiplayer | undefined;
 let gameStore: ReturnType<typeof multiplayerWSStore> | undefined;
+let statistics: SingleplayerStatistics | undefined = undefined;
+let statsOpen = false;
+let stats: HTMLButtonElement | undefined;
+let inspect: number | undefined = undefined;
+
+$: if (data.game.state === GameState.Waiting) {
+    inspect = undefined;
+    statsOpen = false;
+}
+
 $: userCount = Object.values(data?.game?.users).length;
 // Not sure why but sometimes $page.params.code is undefined
 $: if ($preferences?.name && $page.params.code && !gameStore) {
@@ -45,26 +59,31 @@ const goMessageDuration = 500;
 $: countdownTimer =
     data.game.state === GameState.Countdown ||
     (data.game.state === GameState.Playing &&
-        $time.getTime() - data.game.countdownTime <
+        $time.getTime() - data.game.countdownTime! <
             countdownTime + goMessageDuration)
         ? clock(100)
         : null;
 
 $: if ($gameStore) data.game = $gameStore;
-$: otherUsers = data.game?.users
-    ? Object.values(data.game?.users).filter((user) => user.id !== data.me?.id)
-    : [];
-$: passage =
-    data.game && data.game?.passageIndex >= 0
-        ? passages[data.game?.passageIndex]
-        : undefined;
-$: position = data.me?.position ?? 0;
+$: gameReady = !!$gameStore;
+$: if (
+    statistics &&
+    gameReady &&
+    data?.me?.position !== data.game.passage?.length
+) {
+    gameStore?.sendStatistics(statistics);
+}
+
 onMount(() => {
-    if (data?.me) {
+    if (!data.game.passage) {
+        sleep(650).then(() => (extend = true));
+    }
+
+    if (data.me) {
         return;
     }
 
-    if (data?.game.state !== GameState.Waiting) {
+    if (data.game.state !== GameState.Waiting) {
         inGameModal?.showModal();
         return;
     }
@@ -77,13 +96,18 @@ onMount(() => {
 async function selectPassage(passageIndex: number) {
     extend = false;
 
+    const passage = {
+        index: passageIndex,
+        length: passages[passageIndex].length,
+    };
+
     await fetch(
         `http${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
             $page.params.code
         }/passage`,
         {
             method: 'POST',
-            body: passageIndex.toString(),
+            body: JSON.stringify(passage),
             headers: {
                 'Content-Type': 'text/plain',
             },
@@ -91,7 +115,7 @@ async function selectPassage(passageIndex: number) {
         },
     );
 
-    passage = passages[passageIndex];
+    data.game.passage = passage;
 }
 
 function onInput(e: CustomEvent<string>) {
@@ -99,7 +123,6 @@ function onInput(e: CustomEvent<string>) {
 }
 
 function joinGame(e: SubmitEvent) {
-    e.preventDefault();
     preferences.set({
         name:
             new FormData(e.target as HTMLFormElement).get('name')?.toString() ??
@@ -118,26 +141,28 @@ function startGame() {
             credentials: 'include',
         },
     );
-    editor?.focus?.();
+    multiplayer?.focus?.();
 }
 </script>
 
-{#if !passage}
+{#if !data.game.passage}
     <section
         in:slide={{ delay: 250 }}
         out:slide
         class="select-wrapper"
         class:extend
-        on:introend={() => (extend = true)}
         on:outrostart={() => (extend = false)}
     >
         <h1>Select a passage</h1>
 
         <div class="passages">
-            {#each passages as availablePassage, i}
-                <button class="passage" on:click={() => selectPassage(i)}
+            {#each [...passages].sort((a, b) => a.length - b.length) as availablePassage}
+                <button
+                    class="passage"
+                    on:click={() =>
+                        selectPassage(passages.indexOf(availablePassage))}
                     ><span class="passage-header"
-                        >~{Math.round(availablePassage.length / 5)} words</span
+                        >~{Math.round(countWords(availablePassage))} words</span
                     >{availablePassage}</button
                 >
             {/each}
@@ -161,7 +186,9 @@ function startGame() {
                             class:me={user.id === data.me?.id}
                             class:offline={!user.connected && browser}
                         >
-                            <span class="player-name">{user.name}</span>
+                            <span class="player-name" class:admin={user.admin}
+                                >{user.name}</span
+                            >
                             {#if data?.game.state === GameState.Waiting || hovering}<span
                                     class="player-ping"
                                     transition:horizontalSlide|local
@@ -174,39 +201,63 @@ function startGame() {
                 {#if countdownTimer && $countdownTimer !== null}
                     {@const countdown =
                         countdownTime -
-                        ($countdownTimer.getTime() - data.game.countdownTime)}
+                        ($countdownTimer.getTime() -
+                            (data.game?.countdownTime ?? 0))}
                     <div class="countdown-wrapper">
                         <Countdown {countdown} totalTime={countdownTime} />
                     </div>
                 {/if}
             </section>
         {/if}
-        {#if data?.game.state == GameState.Finished}
-            <p>Leaderboard</p>
-        {:else}
-            <MultiplayerEditor
-                bind:this={editor}
-                {passage}
-                startTime={data?.game.state === GameState.Playing
-                    ? new Date(data?.game.startTime)
-                    : undefined}
-                {position}
-                on:keydown={(e) => {
-                    if (data?.game.state !== GameState.Playing) {
-                        e.preventDefault();
-                    }
-                }}
-                otherCursors={otherUsers}
-                on:input={onInput}
-            />
-        {/if}
+        <Multiplayer
+            bind:this={multiplayer}
+            bind:statistics
+            me={data.me}
+            game={data.game}
+            on:input={onInput}
+        />
     </section>
 {/if}
+
+<div
+    class="stats-transition"
+    in:slide={{ delay: 250 }}
+    out:slide={{ duration: 250 }}
+    class:open={statsOpen}
+>
+    {#if data.game.statistics && data.game.state === GameState.Finished}
+        <div
+            class="stats-wrapper"
+            in:slide|local={{ delay: 250 }}
+            out:slide|local={{ duration: 250 }}
+            on:outroend={() => (statsOpen = false)}
+        >
+            <button
+                class="stats"
+                bind:this={stats}
+                on:click|once={async () => {
+                    statsOpen = true;
+                    await tick();
+                    stats?.scrollIntoView({ behavior: 'smooth' });
+                }}
+            >
+                <MultiplayerStatisticsView
+                    me={data.me}
+                    users={data.game.users}
+                    statistics={data.game.statistics}
+                    skeleton={!statsOpen}
+                    startTime={data.game.startTime ?? 0}
+                    on:inspect={(e) => (inspect = e.detail)}
+                />
+            </button>
+        </div>
+    {/if}
+</div>
 
 <dialog bind:this={joinModal} class="modal">
     <h1>Join Game</h1>
     <h2>Please enter your name</h2>
-    <form on:submit={joinGame}>
+    <form on:submit|preventDefault={joinGame}>
         <label for="name">Name:</label>
         <input type="text" name="name" required minlength="1" maxlength="30" />
         <button>Continue</button>
@@ -221,21 +272,62 @@ function startGame() {
 
 <style>
 .game,
-.stats {
+.stats-wrapper {
     --padding: 30px;
     padding: var(--padding);
-    width: calc(85ch + calc(2 * var(--padding)));
+    width: calc(80ch + calc(2 * var(--padding)));
     margin-inline: auto;
+}
+
+.stats-transition {
+    position: relative;
+    margin-top: -125px;
+    max-height: 125px;
+    overflow: hidden;
+    padding-top: 0;
+}
+
+.stats-transition.open {
+    overflow: visible;
+}
+
+.stats-transition.open .stats {
+    cursor: default;
+}
+
+.stats {
+    width: 100%;
+    text-align: unset;
+    transition: all 250ms ease;
+    border: none;
+    appearance: none;
+}
+
+.stats-transition:not(.open)::after {
+    content: 'Click to see statistics';
+    position: absolute;
+    display: grid;
+    place-items: center;
+    top: 0;
+    font-size: 2rem;
+    left: calc(-1 * calc(var(--padding) / 2));
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background-image: linear-gradient(transparent 5%, rgb(60, 60, 60));
+    backdrop-filter: blur(2px);
+    pointer-events: none;
 }
 .modal {
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
     padding: 20px;
     background-color: #2c2c2c;
     border: 1px solid white;
     border-radius: 10px;
     color: white;
+    transform-origin: top left;
+    animation: pop 350ms ease 1 both;
 }
 .modal::backdrop {
     background-color: rgba(0, 0, 0, 0.5);
@@ -246,6 +338,9 @@ function startGame() {
 }
 .player-name {
     font-size: 1.5rem;
+}
+.player-name.admin {
+    text-decoration: underline;
 }
 .me .player-name {
     color: green;
@@ -262,7 +357,7 @@ function startGame() {
 .select-wrapper {
     transition: all 250ms ease;
     margin-left: 0;
-    width: 80vw;
+    width: 75vw;
 }
 .start-game {
     margin-right: 10px;
@@ -317,5 +412,16 @@ h1 {
 }
 .countdown-wrapper {
     margin-left: auto;
+}
+
+@keyframes pop {
+    from {
+        transform: scale(0.65) translate(-50%, -50%);
+        opacity: 0.3;
+    }
+    to {
+        transform: scale(1) translate(-50%, -50%);
+        opacity: 1;
+    }
 }
 </style>
