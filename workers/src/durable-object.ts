@@ -6,9 +6,9 @@ import { signAndSerializeSessionId } from './session';
 interface User {
 	id: string;
 	name: string;
-	city: string | undefined;
+	city?: string;
 	country: string;
-	webSocket: WebSocket;
+	webSocket?: WebSocket;
 	ping: number;
 	position: number;
 	connected: boolean;
@@ -31,7 +31,8 @@ type Message =
 	| Message.Ping
 	| Message.Pong
 	| Message.IncomingPosition
-	| Message.OutgoingPositions;
+	| Message.OutgoingPositions
+	| Message.Statistics;
 
 namespace Message {
 	export type Ping = {
@@ -59,6 +60,11 @@ namespace Message {
 		type: 'positions';
 		data: Map<SafeUser['id'], number>;
 	};
+
+	export type Statistics = {
+		type: 'statistics';
+		data: any;
+	};
 }
 
 const healthCheckInterval = 10000;
@@ -66,10 +72,15 @@ const countdownTime = 10000;
 
 export interface MultiplayerGame {
 	state: GameState;
-	startTime: number | undefined;
-	countdownTime: number | undefined;
+	startTime?: number;
+	endTime?: number;
+	countdownTime?: number;
 	users: Record<string, User>;
-	passageIndex: number;
+	passage?: {
+		index: number;
+		length: number;
+	};
+	statistics: Record<string, any>;
 }
 
 export class GameDurableObject extends createDurable() {
@@ -85,7 +96,8 @@ export class GameDurableObject extends createDurable() {
 			startTime: undefined,
 			countdownTime: undefined,
 			state: GameState.Waiting,
-			passageIndex: -1,
+			passage: undefined,
+			statistics: {},
 		};
 
 		this.scheduleNextAlarm();
@@ -165,15 +177,19 @@ export class GameDurableObject extends createDurable() {
 		return 'Success';
 	}
 
-	attemptSetPassage(session: User, index: number) {
+	attemptSetPassage(
+		session: User,
+		passage: { index: number; length: number },
+	) {
 		if (!session.admin) {
 			return new Response(null, { status: 403 });
 		}
 
-		if (this.game.passageIndex !== -1)
+		if (this.game.passage) {
 			return new Response(null, { status: 400 });
+		}
 
-		this.game.passageIndex = index;
+		this.game.passage = passage;
 		this.sendGame();
 		return 'Success';
 	}
@@ -183,7 +199,7 @@ export class GameDurableObject extends createDurable() {
 		request: RequestLike,
 		name: string,
 	) {
-		webSocket.accept();
+		(webSocket as any).accept();
 
 		const metadata = request.cf;
 		let user = request?.session;
@@ -220,6 +236,8 @@ export class GameDurableObject extends createDurable() {
 
 				const user = this.getUserByConnection(webSocket);
 
+				if (!user) return;
+
 				switch (incomingMessage.type) {
 					case 'ping':
 						const lastPingMs = incomingMessage.data.lastPingMs;
@@ -239,12 +257,28 @@ export class GameDurableObject extends createDurable() {
 						this.sendGame();
 						break;
 					case 'update-position':
-						this.game.users[user.id] = {
-							...this.game.users[user.id],
-							position: incomingMessage.data,
-						};
+						const position = incomingMessage.data;
+
+						this.game.users[user.id].position = position;
+
+						if (position === this.game.passage?.length) {
+							const allDone = Object.values(
+								this.game.users,
+							).every(
+								(user) =>
+									user.position === this.game.passage?.length,
+							);
+
+							if (allDone) {
+								this.game.endTime = Date.now();
+								this.game.state = GameState.Finished;
+							}
+						}
 
 						this.sendGame();
+						break;
+					case 'statistics':
+						this.game.statistics[user.id] = incomingMessage.data;
 						break;
 				}
 			} catch (err) {
@@ -298,7 +332,7 @@ export class GameDurableObject extends createDurable() {
 			.filter(([_, user]) => !exclude.has(user.id) && user.connected)
 			.forEach(([key, user]) => {
 				try {
-					user.webSocket.send(message);
+					user?.webSocket?.send(message);
 				} catch (err) {
 					this.game.users[key].connected = false;
 				}

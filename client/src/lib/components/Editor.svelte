@@ -1,40 +1,48 @@
 <script lang="ts">
 import { timerTimeFormat } from '$lib/format';
 import { isNonLetterKey } from '$lib/keyboard';
-import { splitPassage } from '$lib/passages';
-import { time } from '$lib/stores';
+import { countWords, splitPassage } from '$lib/passages';
+import type { EditorStatisticsEvent } from '$lib/statistics';
+import { clock } from '$lib/stores';
 import { lcp } from '$lib/string';
 import type { User } from '$lib/types';
-import { createEventDispatcher, onMount } from 'svelte';
+import { createEventDispatcher } from 'svelte';
 import { fade, slide } from 'svelte/transition';
 
 export let passage: string;
 export let startTime: Date | undefined = undefined;
+export let endTime: Date | undefined = undefined;
 export let otherCursors: User[] = [];
 export let position: number = 0;
 export let canRestart = false;
+export let inspect: number | undefined = undefined;
+export let done = false;
 
 const dispatch = createEventDispatcher<{
     input: string;
+    collect: EditorStatisticsEvent;
     restart: undefined;
     keydown: KeyboardEvent;
+    complete: Date;
 }>();
 
 let input: HTMLTextAreaElement | undefined;
-let elapsed = 0;
+let elapsed =
+    startTime && endTime ? endTime.getTime() - startTime.getTime() : 0;
 
+let focused = true;
 let currentSectionNumber = 0;
 let text = '';
 let lastTyped = 0;
-let done = false;
-let peakWPM = 0;
 let wpm = 0;
 let smoothWPM = 0;
 let wordsTyped = 0;
 let prevWordsTyped = 0;
 let firstPosition: number | null = null;
 let loadedFirstPosition = false;
+let time = clock(1000);
 
+const getText = () => text;
 const getCurrentWordsTyped = () => wordsTyped;
 
 $: started = startTime !== undefined;
@@ -42,6 +50,7 @@ $: editable = started && !done;
 $: passageSections = passage ? splitPassage(passage) : [];
 $: currentSection = passageSections[currentSectionNumber];
 
+$: if (editable) time = clock(1000);
 $: if (editable) {
     elapsed = $time.getTime() - startTime!.getTime();
 }
@@ -50,8 +59,15 @@ $: if (elapsed) {
     wordsTyped = calculateCorrectWordsTyped();
 }
 $: if (elapsed) wpm = Math.max((wordsTyped - prevWordsTyped) / (1 / 60), 0);
-$: if (elapsed) smoothWPM = (5 * smoothWPM + wpm) / 6;
-$: peakWPM = smoothWPM > peakWPM ? smoothWPM : peakWPM;
+$: if (elapsed) smoothWPM = (2 * smoothWPM + wpm) / 3;
+$: if (elapsed) {
+    const commonPrefix = lcp(input?.value ?? '', passage ?? '');
+    dispatch('collect', {
+        lcp: commonPrefix,
+        wpm: smoothWPM,
+        percent: Math.trunc((commonPrefix.length / passage.length) * 100),
+    });
+}
 $: common_prefix = lcp(currentSection || '', text);
 $: cursorMap = otherCursors.reduce(
     (obj, user) => ((obj[user.position] = user), obj),
@@ -70,7 +86,7 @@ $: if (firstPosition !== null && !loadedFirstPosition && input !== undefined) {
         for (let i = 0; i < passageSections.length; i++) {
             const section = passageSections[i];
             total += section;
-            if (firstPosition <= total.length) {
+            if (firstPosition < total.length) {
                 currentSectionNumber = i;
                 const typed = section.substring(
                     0,
@@ -107,7 +123,13 @@ $: sectionViewEnd = done
       );
 
 function handleKeyDown(e: KeyboardEvent) {
-    if (e.ctrlKey || e.metaKey) {
+    // TODO: Remove all handling of text input by user from key down... bind to text area
+    // text and use key down soley for cancelation
+    if (
+        e.ctrlKey ||
+        e.metaKey ||
+        (e.repeat && e.key !== ' ' && e.key !== 'Backspace')
+    ) {
         return;
     }
 
@@ -148,25 +170,46 @@ function handleKeyDown(e: KeyboardEvent) {
         } else {
             text += e.key;
         }
-        dispatch('input', lcp(input?.value + e.key, passage!));
+        const commonPrefix = lcp(input?.value + e.key, passage!);
+        dispatch('input', commonPrefix);
+        if (commonPrefix.length < (input?.value + e.key).length) {
+            dispatch('collect', {
+                lcp: commonPrefix,
+                incorrect: (input?.value + e.key).slice(commonPrefix.length),
+                percent: Math.trunc(
+                    (commonPrefix.length / passage.length) * 100,
+                ),
+            });
+        }
     }
 
     if (text === currentSection) {
         text = '';
         if (++currentSectionNumber === passageSections.length) {
             done = true;
+            dispatch('complete', new Date());
         }
     }
     lastTyped = $time.getTime();
 }
 
-onMount(() => {
-    setTimeout(() => input?.blur(), 50);
-});
-
 function calculateCorrectWordsTyped(str?: string) {
     const correctPrefix = lcp(str || input?.value || '', passage || '');
-    return correctPrefix ? correctPrefix.length / 5 : 0;
+    return correctPrefix ? countWords(correctPrefix) : 0;
+}
+
+function isCharacterInspected(
+    sectionIndex: number,
+    i: number,
+    inspect: number | undefined,
+) {
+    if (inspect === undefined || !done) return;
+
+    const inspectIdx = Math.trunc(passage.length * (inspect / 100));
+
+    const characterIndex = sectionIndex + i;
+
+    return Math.abs(inspectIdx - characterIndex) < 5;
 }
 
 function restart() {
@@ -174,21 +217,24 @@ function restart() {
     currentSectionNumber = 0;
     text = '';
     lastTyped = 0;
-    peakWPM = 0;
     wpm = 0;
     smoothWPM = 0;
     wordsTyped = 0;
     prevWordsTyped = 0;
     done = false;
     input!.value = '';
+    input?.focus();
+    document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
     dispatch('restart');
+}
+
+export function focus() {
+    input?.focus();
 }
 </script>
 
-<svelte:body on:focus={() => input?.focus()} />
-
 <section>
-    <h3>
+    <h1 class="metadata">
         <span class="time">
             {startTime ? timerTimeFormat(elapsed) : '0:00'}
         </span>
@@ -202,16 +248,18 @@ function restart() {
                 >Click to restart</button
             >
         {/if}
-    </h3>
-    <h4>
-        WPM: {smoothWPM.toFixed(0)}, Peak: {peakWPM.toFixed(0) || 'Unknown'}
-    </h4>
+    </h1>
 
+    <!-- Safe to disable since keyboard navigating to the text area focuses -->
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div
         class="wrapper"
         class:done
+        class:focused
+        class:started
         style="--current-section-number: {currentSectionNumber -
             sectionViewStart};"
+        on:click={() => input?.focus()}
     >
         {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i + sectionViewStart)}
             {@const sectionCharIndex = passage.indexOf(section)}
@@ -234,31 +282,33 @@ function restart() {
                             {/each}
                         </p>
                         <!-- prettier-ignore -->
-                        <pre>{#each common_prefix as letter, i}<span class="letter correct" class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name} in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:blocked={!canRestart && !startTime} class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
+                        <pre>{#each common_prefix as letter, j}<span class="letter correct" class:other-cursor={!!cursorMap[j + sectionCharIndex]} data-user={cursorMap[j + sectionCharIndex ]?.name} in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:blocked={!canRestart && !startTime} class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
                     </div>
                 {:else}
                     <div transition:slide|local>
                         <p class="line">
                             <!-- prettier-ignore -->
-                            {#each section as character, i}<span class:other-cursor={!!cursorMap[i + sectionCharIndex]} data-user={cursorMap[i + sectionCharIndex ]?.name}>{character}</span>{/each}
+                            {#each section as character, j}<span class:other-cursor={!!cursorMap[j + sectionCharIndex]} data-user={cursorMap[j + sectionCharIndex ]?.name} class:inspect={isCharacterInspected(sectionCharIndex, j, inspect)}>{character}</span>{/each}
                         </p>
                     </div>
                 {/if}
             </div>
         {/each}
-        {#each otherCursors as cursor}
+        <!-- {#each otherCursors as cursor}
             {#if cursor.position > (passage?.indexOf(passageSections[sectionViewEnd - 1]) ?? 20000) + (passageSections[sectionViewEnd - 1]?.length ?? 2000)}
                 <p>{cursor.name} past</p>
             {:else if cursor.position >= passage.length}
                 <p>{cursor.name} done</p>
             {/if}
-        {/each}
+        {/each} -->
     </div>
+
     <!-- svelte-ignore a11y-autofocus -->
     <textarea
         bind:this={input}
         autofocus
-        on:blur={() => input?.focus()}
+        on:blur={() => (focused = false)}
+        on:focus={() => (focused = true)}
         on:keydown={handleKeyDown}
         autocomplete="false"
         autocapitalize="false"
@@ -268,22 +318,23 @@ function restart() {
 </section>
 
 <style>
-h3,
-h4 {
+.metadata {
     color: white;
     font-weight: normal;
     font-family: Arial, Helvetica, sans-serif;
-    margin-bottom: 5px;
-}
-h4 {
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    font-size: 1.17rem;
 }
 textarea {
+    resize: none;
     opacity: 0;
-    height: 0;
+    height: 0.1px;
+    width: 0.1px;
+
     padding: 0;
     margin: 0;
-    border: 0;
+    border: none;
+    appearance: none;
 }
 pre,
 p {
@@ -292,6 +343,8 @@ p {
     min-height: 20px;
     font-size: 1.5rem;
     font-kerning: none;
+    --line-height: 1.2;
+    line-height: var(--line-height);
     cursor: text;
 }
 span.letter {
@@ -345,6 +398,13 @@ span.carrot.blocked {
 span.carrot.animate {
     animation: blink 1s infinite;
 }
+span.inspect {
+    font-weight: bold;
+    color: rgb(216, 97, 255);
+}
+p.line > span {
+    transition: all 150ms ease;
+}
 span.time {
     font-weight: bold;
 }
@@ -360,6 +420,27 @@ div.wrapper {
     display: flex;
     flex-flow: column nowrap;
 }
+div.wrapper:not(.done):not(.focused)::after {
+    content: 'Editor unfocused. Click here to refocus.';
+    position: absolute;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    vertical-align: middle;
+    font-size: 2rem;
+    text-align: center;
+    border-radius: 20px;
+    border: 5px dashed gray;
+    background-color: rgba(0, 0, 0, 0.75);
+    color: white;
+    --scale: 20px;
+    width: calc(100% + var(--scale));
+    height: calc(100% + var(--scale));
+    top: calc(-1 * var(--scale) / 2);
+    left: calc(-1 * var(--scale) / 2);
+    cursor: pointer;
+    backdrop-filter: blur(3px);
+}
 p.line {
     transition: color 200ms ease;
 }
@@ -369,20 +450,43 @@ div.done p.line {
 div.line {
     margin-block: 0.15rem;
 }
-div.wrapper:not(.done)::before {
+div.wrapper::before {
     content: '→';
     position: absolute;
-    left: -30px;
+    left: -35px;
     top: 0px;
+    --start-height: 0.45em;
+    --line-height: 1.41em;
     transform: translateY(
-        calc(0.9ex + calc(var(--current-section-number) * 2.8ex))
+        calc(
+            var(--start-height) +
+                calc(var(--current-section-number) * var(--line-height))
+        )
     );
-    transition: transform 200ms ease;
     font-size: 1.5rem;
     color: white;
     font-family: Arial, Helvetica, sans-serif;
-    animation: fade-in 0.5s both 1 ease-in;
+    opacity: 0;
+    transition: opacity 0.5s ease, transform 200ms ease;
+    animation: fade-in 0.5s 1 ease;
+    font-family: var(--font-heading);
 }
+div.wrapper.done::before {
+    opacity: 0;
+    /* One last past the end minus the translate of one line (the last line) */
+    transform: translateY(
+        calc(
+            var(--start-height) +
+                calc(calc(var(--current-section-number) * var(--line-height))) -
+                calc(var(--start-height) + var(--line-height))
+        )
+    );
+}
+
+div.wrapper.focused:not(.done)::before {
+    opacity: 1;
+}
+
 .restart {
     display: inline;
     color: white;
@@ -401,11 +505,11 @@ div.wrapper:not(.done)::before {
         color: white;
     }
     99% {
-        transform: translateY(1.9rem);
+        transform: translateY(calc(1em * var(--line-height)));
         opacity: 1;
     }
     100% {
-        transform: translateY(1.9rem);
+        transform: translateY(calc(1em * var(--line-height)));
         opacity: 0;
         color: rgb(217, 255, 228);
     }

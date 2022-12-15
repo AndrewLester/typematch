@@ -1,3 +1,5 @@
+import type { MultiplayerStatistics } from './statistics';
+
 export interface User {
     id: string;
     name: string;
@@ -19,8 +21,13 @@ export const countdownTime = 10000;
 
 export interface MultiplayerGame {
     state: GameState;
-    startTime: number;
-    countdownTime: number;
+    startTime?: number;
+    endTime?: number;
+    countdownTime?: number;
     users: Record<string, User>;
-    passageIndex: number;
+    passage?: {
+        index: number;
+        length: number;
+    };
+    statistics: Record<string, any>;
 }

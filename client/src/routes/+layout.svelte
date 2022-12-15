@@ -1,6 +1,31 @@
 <script lang="ts">
+import '@carbon/styles/css/styles.css';
+import '@carbon/charts/styles.css';
+import { page } from '$app/stores';
+import { fade } from 'svelte/transition';
 import '../app.css';
+
+$: singleplayer = $page.url.pathname === '/';
 </script>
+
+<svelte:head>
+    <title>TypeMatch</title>
+</svelte:head>
+
+{#key $page.url.pathname}
+    <a
+        transition:fade
+        href={singleplayer ? '/multiplayer' : '/'}
+        class="button nav"
+        data-sveltekit-noscroll
+    >
+        {#if singleplayer}
+            Multiplayer
+        {:else}
+            Singleplayer
+        {/if}
+    </a>
+{/key}
 
 <a href="https://github.com/AndrewLester/typematch" class="github">
     <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
@@ -14,27 +39,39 @@ import '../app.css';
     </svg>
 </a>
 
-<svelte:head>
-    <title>TypeMatch</title>
-</svelte:head>
-
-<main data-sveltekit-prefetch>
+<main>
     <slot />
 </main>
 
 <style>
 main {
-    display: flex;
-    flex-flow: column nowrap;
-    justify-content: center;
-    background-color: rgb(31, 31, 31);
-    height: 100vh;
-    margin: 0px auto;
-    width: 90ch;
+    position: relative;
+    display: grid;
+    grid-template-rows: 1fr;
+    place-items: center;
+    min-height: 100vh;
+    width: 100%;
 }
+
+main > :global(section) {
+    grid-area: 1 / 1 / 2 / 2;
+}
+
+.nav,
 .github {
     position: fixed;
+    z-index: 1;
+}
+
+.nav {
+    top: 20px;
+    left: 20px;
+}
+
+.github {
+    display: flex;
     top: 20px;
     right: 40px;
+    border-radius: 50%;
 }
 </style>

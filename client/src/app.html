@@ -13,7 +13,10 @@
         />
         %sveltekit.head%
     </head>
-    <body>
-        %sveltekit.body%
+    <body
+        data-sveltekit-preload-code="viewport"
+        data-sveltekit-preload-data="hover"
+    >
+        <div style="display: contents">%sveltekit.body%</div>
     </body>
 </html>

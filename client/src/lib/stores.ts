@@ -2,6 +2,10 @@ import { browser } from '$app/environment';
 import { writable as storageWritable } from 'svelte-local-storage-store';
 import { readable, writable } from 'svelte/store';
 import { sleep } from './async';
+import type {
+    MultiplayerStatistics,
+    SingleplayerStatistics,
+} from './statistics';
 import type { MultiplayerGame } from './types';
 
 export const clock = (interval: number) =>
@@ -85,9 +89,14 @@ export function multiplayerWSStore(webSocketURL: string) {
         );
     };
 
+    const sendStatistics = (statistics: SingleplayerStatistics) => {
+        socket?.send(JSON.stringify({ type: 'statistics', data: statistics }));
+    };
+
     return {
         subscribe,
         updatePosition,
+        sendStatistics,
     };
 }
 

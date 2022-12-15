@@ -14,6 +14,11 @@ const config = {
             $components: 'src/components',
         },
     },
+    vitePlugin: {
+        experimental: {
+            inspector: true,
+        },
+    },
 };
 
 export default config;

@@ -1,8 +1,8 @@
+// @ts-nocheck
 import { withDurables } from 'itty-durable';
 import { RequestLike, Router } from 'itty-router';
 import { withCORS, wrapCORS } from './cors';
 import { Environment } from './env';
-import { generateCode } from './game';
 import { buildCallRequest } from './itty-stuff';
 import { withSession } from './session';
 
@@ -40,12 +40,6 @@ gameRouter
 		withCORS({ allowOrigin: env.FRONTEND_URL })(request),
 	)
 	.all('*', withDurables())
-	.post('/create', (_, env) => {
-		const code = generateCode();
-		return new Response(`${env.FRONTEND_URL}/game/${code}`, {
-			status: 200,
-		});
-	})
 	.all('/:code*', withGameDurable)
 	.all(
 		'/:code*',
@@ -104,7 +98,7 @@ gameRouter
 	.post('/:code/passage', withGameSession, async (request) =>
 		request.GameDurableObject.attemptSetPassage(
 			request.session,
-			Number(await request.text()),
+			await request.json(),
 		),
 	)
 	.all('*', () => new Response(null, { status: 404 }));

@@ -60,6 +60,7 @@ path {
 p {
     width: 2em;
     height: 1.2em;
+    font-size: inherit;
     text-align: center;
     transform-origin: center;
 }

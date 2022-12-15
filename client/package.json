@@ -25,10 +25,12 @@
         "svelte-preprocess": "^4.10.1",
         "tslib": "^2.3.1",
         "typescript": "~4.5.4",
-        "vite": "^3.2.2"
+        "vite": "^4.0.0"
     },
     "type": "module",
     "dependencies": {
+        "@carbon/charts-svelte": "^1.6.1",
+        "d3": "^7.6.1",
         "svelte-local-storage-store": "^0.3.1"
     }
 }

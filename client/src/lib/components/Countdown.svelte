@@ -26,7 +26,7 @@ const [send, receive] = crossfade({
 });
 </script>
 
-{#if countdown > totalTime / 2}
+{#if countdown > Number((totalTime * (3 / 4)).toPrecision(1))}
     <div class="absolute" in:receive={{ key }} out:send={{ key }}>
         <CountdownText {countdown} {totalTime} />
     </div>
