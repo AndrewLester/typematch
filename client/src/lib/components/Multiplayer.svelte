@@ -17,7 +17,10 @@ $: statisticsCollector = new SingleplayerStatisticsCollector(playerStats);
 let editor: Editor | undefined;
 
 $: if (game.state === GameState.Playing && !statisticsCollector.startTime) {
-    statisticsCollector.begin(passages[game.passage!.index], new Date());
+    statisticsCollector.begin(
+        passages[game.passage!.index],
+        new Date(game.startTime!),
+    );
 }
 
 $: if ($statisticsCollector) {
