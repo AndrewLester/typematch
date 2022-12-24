@@ -1,4 +1,5 @@
 <script lang="ts">
+import { dev } from '$app/environment';
 import { timerTimeFormat } from '$lib/format';
 import { isNonLetterKey } from '$lib/keyboard';
 import { countWords, splitPassage } from '$lib/passages';
@@ -164,7 +165,7 @@ function handleKeyDown(e: KeyboardEvent) {
     } else if (!isNonLetterKey(e.key)) {
         if (e.key === 'Enter') {
             text += '↩';
-        } else if (e.key === '>') {
+        } else if (e.key === '>' && dev) {
             text = currentSection;
             input!.value += currentSection.slice(common_prefix.length);
         } else {
