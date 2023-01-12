@@ -15,6 +15,8 @@ export let startTime: Date | undefined = undefined;
 
 const statisticsCollector = new SingleplayerStatisticsCollector();
 
+let editor: Editor | undefined;
+
 $: if ($statisticsCollector) {
     statistics = $statisticsCollector;
 }
@@ -33,6 +35,10 @@ function handleKeyDown(e: CustomEvent<KeyboardEvent>) {
         statisticsCollector.begin(passage, startTime);
     }
 }
+
+export function focus() {
+    editor?.focus();
+}
 </script>
 
 <Editor
@@ -49,6 +55,7 @@ function handleKeyDown(e: CustomEvent<KeyboardEvent>) {
         startTime = undefined;
         statisticsCollector.reset();
     }}
+    bind:this={editor}
 >
     <svelte:fragment slot="waiting">Ready? Begin typing</svelte:fragment>
 </Editor>

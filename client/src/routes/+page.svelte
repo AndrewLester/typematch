@@ -1,14 +1,15 @@
 <script lang="ts">
-import { beforeNavigate } from '$app/navigation';
 import Singleplayer from '$lib/components/Singleplayer.svelte';
 import SingleplayerStatisticsView from '$lib/components/SingleplayerStatisticsView.svelte';
+import { passages } from '$lib/passages';
 import type { SingleplayerStatistics } from '$lib/statistics';
 import { tick } from 'svelte';
-import { fade, slide } from 'svelte/transition';
+import { slide } from 'svelte/transition';
 import type { PageData } from './$types';
 
 export let data: PageData;
 
+let editor: Singleplayer | undefined;
 let stats: HTMLButtonElement | undefined;
 let statistics: SingleplayerStatistics | undefined = undefined;
 let statsOpen = false;
@@ -27,13 +28,32 @@ $: if (!done) {
 
 <!-- Delay lets previous element slide a little bit out -->
 <section class="editor-wrapper" in:slide={{ delay: 250 }} out:slide>
+    <button
+        class="prev"
+        on:pointerdown={async () => {
+            data.passageIdx -= 1;
+            data.passageIdx %= passages.length;
+            await tick();
+            editor?.focus();
+        }}>&larr;</button
+    >
     <Singleplayer
-        passage={data.passage}
+        passage={passages[data.passageIdx]}
         {inspect}
         bind:done
         bind:statistics
         bind:startTime
+        bind:this={editor}
     />
+    <button
+        class="next"
+        on:pointerdown={async () => {
+            data.passageIdx += 1;
+            data.passageIdx %= passages.length;
+            await tick();
+            editor?.focus();
+        }}>&rarr;</button
+    >
 </section>
 
 {#if statistics && done}
@@ -66,10 +86,25 @@ $: if (!done) {
 <style>
 .editor-wrapper,
 .stats-wrapper {
+    position: relative;
     --padding: 30px;
     width: calc(80ch + calc(2 * var(--padding)));
     padding: var(--padding);
     margin-inline: auto;
+}
+
+.editor-wrapper > button {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.prev {
+    left: -50px;
+}
+
+.next {
+    right: -50px;
 }
 
 .stats-wrapper {

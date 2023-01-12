@@ -86,8 +86,9 @@ export interface MultiplayerGame {
 export class GameDurableObject extends createDurable() {
 	game: MultiplayerGame;
 	dolocation: string;
+	env: Environment;
 
-	constructor(state: DurableObjectState) {
+	constructor(state: DurableObjectState, env: Environment) {
 		super(state);
 
 		this.dolocation = '';
@@ -99,25 +100,13 @@ export class GameDurableObject extends createDurable() {
 			passage: undefined,
 			statistics: {},
 		};
+		this.env = env;
 
 		this.scheduleNextAlarm();
 		this.getDurableObjectLocation();
 	}
 
-	fetch(request, ...args) {
-		if (request.method === 'GET' && request.url.endsWith('connect')) {
-			return this.connect(
-				...(JSON.parse(request.headers.get('content')) as [
-					string,
-					RequestLike,
-					Environment,
-				]),
-			);
-		}
-		return super.fetch(request, ...args);
-	}
-
-	async connect(name: string, request: RequestLike, env: Environment) {
+	async connect(name: string, request: RequestLike) {
 		if (!request.session) {
 			if (this.game.state !== GameState.Waiting) {
 				return new Response("Can't join an in progress game", {
@@ -142,9 +131,11 @@ export class GameDurableObject extends createDurable() {
 		if (user.id !== request?.session?.id) {
 			const cookie = await signAndSerializeSessionId(
 				user.id,
-				env.SESSION_SECRET,
-				env.WORKER_ENV !== 'development',
-				env.WORKER_ENV !== 'development' ? env.WORKER_HOST : undefined,
+				this.env.SESSION_SECRET,
+				this.env.WORKER_ENV !== 'development',
+				this.env.WORKER_ENV !== 'development'
+					? this.env.WORKER_HOST
+					: undefined,
 			);
 
 			headers = {
@@ -348,7 +339,7 @@ export class GameDurableObject extends createDurable() {
 	}
 
 	getSession(sessionId: string) {
-		const user = this.game.users[sessionId];
+		const user = this.game.users[sessionId] ?? null;
 		return user;
 	}
 

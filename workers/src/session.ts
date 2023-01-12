@@ -124,7 +124,7 @@ const withCookies = (request) => {
 	try {
 		request.cookies = (request.headers.get('Cookie') || '')
 			.split(/;\s*/)
-			.map((pair) => pair.split('='))
+			.map((pair) => pair.split(/=(.+)/))
 			.reduce((acc, [key, value]) => {
 				acc[key] = value;
 

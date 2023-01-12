@@ -1,9 +1,7 @@
-// @ts-nocheck
 import { withDurables } from 'itty-durable';
 import { RequestLike, Router } from 'itty-router';
 import { withCORS, wrapCORS } from './cors';
 import { Environment } from './env';
-import { buildCallRequest } from './itty-stuff';
 import { withSession } from './session';
 
 export { GameDurableObject } from './durable-object';
@@ -60,36 +58,17 @@ gameRouter
 			required: false,
 			getSession: getDurableSession,
 		}),
-		async (request, env) => {
+		(request) => {
 			if (request.headers.get('upgrade') !== 'websocket') {
 				return new Response('Upgrade header not set to websocket', {
 					status: 400,
 				});
 			}
 
-			const otherHeaders = {};
-			for (const [key, val] of request.headers) {
-				otherHeaders[key] = val;
-			}
-
-			const name = env.GameDurableObject.idFromName(request.params.code);
-			const stub = env.GameDurableObject.get(name);
-
-			const req = buildCallRequest(
-				request.params.code,
-				'connect',
-				[request.query.name, request, env],
-				otherHeaders,
+			return request.GameDurableObject.connect(
+				request.query.name,
+				request,
 			);
-			const res = await stub.fetch(req);
-
-			// const q = await request.GameDurableObject.connect(
-			// 	request.query.name,
-			// 	request,
-			// 	env,
-			// );
-
-			return res;
 		},
 	)
 	.post('/:code/start', withGameSession, ({ session, GameDurableObject }) =>

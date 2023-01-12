@@ -70,8 +70,12 @@ export function splitPassage(passage: string) {
     return sections;
 }
 
+export function getRandomPassageIdx() {
+    return Math.trunc(Math.random() * passages.length);
+}
+
 export function getRandomPassage() {
-    return passages[Math.trunc(Math.random() * passages.length)];
+    return passages[getRandomPassageIdx()];
 }
 
 export function countWords(text: string) {

@@ -8,7 +8,7 @@ import { clock } from '$lib/stores';
 import { lcp } from '$lib/string';
 import type { User } from '$lib/types';
 import { createEventDispatcher } from 'svelte';
-import { fade, slide } from 'svelte/transition';
+import { fade, fly, slide } from 'svelte/transition';
 
 export let passage: string;
 export let startTime: Date | undefined = undefined;
@@ -253,56 +253,62 @@ export function focus() {
 
     <!-- Safe to disable since keyboard navigating to the text area focuses -->
     <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <div
-        class="wrapper"
-        class:done
-        class:focused
-        class:started
-        style="--current-section-number: {currentSectionNumber -
-            sectionViewStart};"
-        on:click={() => input?.focus()}
-    >
-        {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i + sectionViewStart)}
-            {@const sectionCharIndex = passage.indexOf(section)}
-            {@const sectionIndex = i + sectionViewStart}
-            <div transition:slide|local class="line">
-                {#if currentSectionNumber === sectionIndex}
-                    <div class="editor" transition:slide|local>
-                        <p class="line">
-                            {#each section as letter, i}
-                                <span
-                                    class="letter"
-                                    class:other-cursor={i >=
-                                        common_prefix.length &&
-                                        !!cursorMap[i + sectionCharIndex]}
-                                    data-user={cursorMap[i + sectionCharIndex]
-                                        ?.name}
-                                    class:hidden={i < common_prefix.length &&
-                                        letter !== ' '}>{letter}</span
-                                >
-                            {/each}
-                        </p>
-                        <!-- prettier-ignore -->
-                        <pre>{#each common_prefix as letter, j}<span class="letter correct" class:other-cursor={!!cursorMap[j + sectionCharIndex]} data-user={cursorMap[j + sectionCharIndex ]?.name} in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:blocked={!canRestart && !startTime} class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
-                    </div>
-                {:else}
-                    <div transition:slide|local>
-                        <p class="line">
+    {#key passage}
+        <div
+            class="wrapper"
+            class:done
+            class:focused
+            class:started
+            style:--current-section-number={currentSectionNumber -
+                sectionViewStart}
+            in:fly|local={{ x: -50, delay: 400, duration: 200 }}
+            out:fly|local={{ x: 50, duration: 200 }}
+            on:click={() => input?.focus()}
+        >
+            {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i + sectionViewStart)}
+                {@const sectionCharIndex = passage.indexOf(section)}
+                {@const sectionIndex = i + sectionViewStart}
+                <div transition:slide|local class="line">
+                    {#if currentSectionNumber === sectionIndex}
+                        <div class="editor" transition:slide|local>
+                            <p class="line">
+                                {#each section as letter, i}
+                                    <span
+                                        class="letter"
+                                        class:other-cursor={i >=
+                                            common_prefix.length &&
+                                            !!cursorMap[i + sectionCharIndex]}
+                                        data-user={cursorMap[
+                                            i + sectionCharIndex
+                                        ]?.name}
+                                        class:hidden={i <
+                                            common_prefix.length &&
+                                            letter !== ' '}>{letter}</span
+                                    >
+                                {/each}
+                            </p>
                             <!-- prettier-ignore -->
-                            {#each section as character, j}<span class:other-cursor={!!cursorMap[j + sectionCharIndex]} data-user={cursorMap[j + sectionCharIndex ]?.name} class:inspect={isCharacterInspected(sectionCharIndex, j, inspect)}>{character}</span>{/each}
-                        </p>
-                    </div>
-                {/if}
-            </div>
-        {/each}
-        <!-- {#each otherCursors as cursor}
+                            <pre>{#each common_prefix as letter, j}<span class="letter correct" class:other-cursor={!!cursorMap[j + sectionCharIndex]} data-user={cursorMap[j + sectionCharIndex ]?.name} in:fade={{delay: 198, duration: 0}}>{letter}</span>{/each}<span class="error">{text.slice(common_prefix.length)}</span><span class="carrot" class:blocked={!canRestart && !startTime} class:animate={$time.getTime() - lastTyped > 750}>|</span></pre>
+                        </div>
+                    {:else}
+                        <div transition:slide|local>
+                            <p class="line">
+                                <!-- prettier-ignore -->
+                                {#each section as character, j}<span class:other-cursor={!!cursorMap[j + sectionCharIndex]} data-user={cursorMap[j + sectionCharIndex ]?.name} class:inspect={isCharacterInspected(sectionCharIndex, j, inspect)}>{character}</span>{/each}
+                            </p>
+                        </div>
+                    {/if}
+                </div>
+            {/each}
+            <!-- {#each otherCursors as cursor}
             {#if cursor.position > (passage?.indexOf(passageSections[sectionViewEnd - 1]) ?? 20000) + (passageSections[sectionViewEnd - 1]?.length ?? 2000)}
                 <p>{cursor.name} past</p>
             {:else if cursor.position >= passage.length}
                 <p>{cursor.name} done</p>
             {/if}
         {/each} -->
-    </div>
+        </div>
+    {/key}
 
     <!-- svelte-ignore a11y-autofocus -->
     <textarea
@@ -347,6 +353,9 @@ p {
     --line-height: 1.2;
     line-height: var(--line-height);
     cursor: text;
+}
+:global(.wrapper + .wrapper) {
+    display: none !important;
 }
 span.letter {
     display: inline;

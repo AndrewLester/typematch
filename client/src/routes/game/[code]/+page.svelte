@@ -1,7 +1,7 @@
 <script lang="ts">
 import { browser, dev } from '$app/environment';
 
-import { beforeNavigate, invalidate } from '$app/navigation';
+import { invalidate } from '$app/navigation';
 
 import { page } from '$app/stores';
 import { PUBLIC_WORKER_HOST } from '$env/static/public';
@@ -17,8 +17,9 @@ import { clock, multiplayerWSStore, preferences, time } from '$lib/stores';
 import { horizontalSlide } from '$lib/transition';
 import { countdownTime, GameState } from '$lib/types';
 import { onMount, tick } from 'svelte';
-import { fade, slide } from 'svelte/transition';
+import { slide } from 'svelte/transition';
 import type { PageData } from './$types';
+import type { FormEventHandler, HTMLFormAttributes } from 'svelte/elements';
 
 export let data: PageData;
 
@@ -122,14 +123,14 @@ function onInput(e: CustomEvent<string>) {
     gameStore?.updatePosition(e.detail.length);
 }
 
-function joinGame(e: SubmitEvent) {
+const joinGame: FormEventHandler<HTMLFormElement> = (e) => {
     preferences.set({
         name:
             new FormData(e.target as HTMLFormElement).get('name')?.toString() ??
             '',
     });
     joinModal?.close();
-}
+};
 
 function startGame() {
     fetch(
