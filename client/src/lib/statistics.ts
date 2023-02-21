@@ -95,9 +95,13 @@ export class SingleplayerStatisticsCollector
     subscribe: typeof this.store.subscribe;
 
     constructor(
-        initialValue: SingleplayerStatistics = defaultSingleplayeStats,
+        initialValue?: SingleplayerStatistics,
     ) {
-        this.store = writable<SingleplayerStatistics>(initialValue);
+        if (!initialValue) {
+            initialValue = JSON.parse(JSON.stringify(defaultSingleplayeStats));
+        }
+
+        this.store = writable<SingleplayerStatistics>(initialValue!);
         this.subscribe = this.store.subscribe;
     }
 
