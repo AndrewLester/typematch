@@ -28,7 +28,7 @@ $: if (!done) {
 
 <!-- Delay lets previous element slide a little bit out -->
 <section class="editor-wrapper" in:slide={{ delay: 250 }} out:slide>
-    <button
+    <!-- <button
         class="prev"
         on:pointerdown={async () => {
             data.passageIdx -= 1;
@@ -36,7 +36,7 @@ $: if (!done) {
             await tick();
             editor?.focus();
         }}>&larr;</button
-    >
+    > -->
     <Singleplayer
         passage={passages[data.passageIdx]}
         {inspect}
@@ -45,7 +45,7 @@ $: if (!done) {
         bind:startTime
         bind:this={editor}
     />
-    <button
+    <!-- <button
         class="next"
         on:pointerdown={async () => {
             data.passageIdx += 1;
@@ -53,7 +53,7 @@ $: if (!done) {
             await tick();
             editor?.focus();
         }}>&rarr;</button
-    >
+    > -->
 </section>
 
 {#if statistics && done}
