@@ -31,6 +31,7 @@
     "type": "module",
     "dependencies": {
         "@carbon/charts-svelte": "^1.6.1",
+        "@neoconfetti/svelte": "^1.0.0",
         "d3": "^7.6.1",
         "svelte-local-storage-store": "^0.3.1"
     }

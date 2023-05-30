@@ -4,6 +4,12 @@
     --font-heading: 'Raleway', sans-serif;
     --transition-duration: 250ms;
     --color-background: rgb(31, 31, 31);
+    --gold: rgb(224, 167, 11);
+    --gold-light: rgb(250, 226, 159);
+    --silver: rgb(156, 156, 156);
+    --silver-light: rgb(227, 227, 227);
+    --bronze: rgb(125, 97, 45);
+    --bronze-light: rgb(208, 191, 163);
     font-size: 120%;
 }
 

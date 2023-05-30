@@ -4,17 +4,24 @@ import {
     SingleplayerStatisticsCollector,
     type SingleplayerStatistics,
 } from '$lib/statistics';
+import { confetti } from '@neoconfetti/svelte';
+import { horizontalSlide } from '$lib/transition';
 import { GameState, type MultiplayerGame, type User } from '$lib/types';
+import { slide } from 'svelte/transition';
 import Editor from './Editor.svelte';
+import Trophy from './icons/Trophy.svelte';
+import Leaderboard from './multiplayer/Leaderboard.svelte';
+import Podium from './multiplayer/Podium.svelte';
 
 export let me: User | undefined;
 export let game: MultiplayerGame;
 export let statistics: SingleplayerStatistics | undefined = undefined;
 
+let editor: Editor | undefined;
+let podium: HTMLDialogElement | undefined;
+
 $: playerStats = me ? game.statistics[me.id] : undefined;
 $: statisticsCollector = new SingleplayerStatisticsCollector(playerStats);
-
-let editor: Editor | undefined;
 
 $: if (game.state === GameState.Playing && !statisticsCollector.startTime) {
     statisticsCollector.begin(
@@ -28,13 +35,25 @@ $: if ($statisticsCollector) {
 }
 
 $: passage = passages[game.passage?.index ?? 0];
-
 $: otherUsers = Object.values(game.users).filter((user) => user.id !== me?.id);
+$: finishedUsers = Object.values(game.users)
+    .filter((user) => user.finished !== undefined)
+    .sort((a, b) => a.finished! - b.finished!);
+$: allFinished = finishedUsers.length === Object.values(game.users).length;
+$: if (allFinished && podium) {
+    podium.showModal();
+}
 
 export function focus() {
     editor?.focus();
 }
 </script>
+
+<svelte:window on:click={() => podium?.close()} />
+
+{#if allFinished}
+    <div class="confetti" use:confetti />
+{/if}
 
 <Editor
     bind:this={editor}
@@ -61,3 +80,26 @@ export function focus() {
         {/if}
     </svelte:fragment>
 </Editor>
+
+<Podium bind:podium users={finishedUsers} />
+
+<aside>
+    <Leaderboard users={finishedUsers} />
+</aside>
+
+<style>
+aside {
+    position: absolute;
+    top: 27.5%;
+    right: 0;
+    padding-right: 20px;
+}
+
+.confetti {
+    padding: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+}
+</style>

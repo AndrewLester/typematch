@@ -1,5 +1,3 @@
-import type { MultiplayerStatistics } from './statistics';
-
 export interface User {
     id: string;
     name: string;
@@ -8,6 +6,7 @@ export interface User {
     position: number;
     connected: boolean;
     admin: boolean;
+    finished?: number;
 }
 
 export const enum GameState {

@@ -27,7 +27,7 @@ const dispatch = createEventDispatcher<{
     complete: Date;
 }>();
 
-let input: HTMLTextAreaElement | undefined;
+let input: HTMLTextAreaElement;
 let elapsed =
     startTime && endTime ? endTime.getTime() - startTime.getTime() : 0;
 

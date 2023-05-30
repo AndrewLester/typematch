@@ -13,6 +13,7 @@ interface User {
 	position: number;
 	connected: boolean;
 	admin: boolean;
+	finished?: number;
 }
 
 interface SafeUser extends User {
@@ -253,6 +254,14 @@ export class GameDurableObject extends createDurable() {
 						this.game.users[user.id].position = position;
 
 						if (position === this.game.passage?.length) {
+							this.game.users[user.id].finished = Object.values(
+								this.game.users,
+							).reduce(
+								(prev, cur) =>
+									prev + Number(cur.finished !== undefined),
+								0,
+							);
+
 							const allDone = Object.values(
 								this.game.users,
 							).every(
