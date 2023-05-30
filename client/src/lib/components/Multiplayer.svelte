@@ -81,10 +81,15 @@ export function focus() {
     </svelte:fragment>
 </Editor>
 
-<Podium bind:podium first={finishedUsers[0]} second={finishedUsers[1]} third={finishedUsers[2]} />
+<Podium
+    bind:podium
+    first={finishedUsers[0]}
+    second={finishedUsers[1]}
+    third={finishedUsers[2]}
+/>
 
 <aside>
-    <Leaderboard users={finishedUsers} />
+    <Leaderboard users={Object.values(game.users)} />
 </aside>
 
 <style>
@@ -96,7 +101,7 @@ aside {
 }
 
 .confetti {
-    padding: fixed;
+    position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);

@@ -62,7 +62,9 @@ dialog > h1 {
 
 .podium {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr;
+    grid-template-areas: 'silver gold bronze';
     grid-auto-flow: column;
     justify-items: end;
     width: 100%;
@@ -72,13 +74,12 @@ dialog > h1 {
     overflow: hidden;
 }
 
-.podium > div {
+.podium > :where(div) {
     display: flex;
     flex-flow: column nowrap;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    --icon-color: var(--gold);
     color: black;
     width: 100%;
     border-radius: 10px 10px 0 0;
@@ -90,23 +91,29 @@ dialog > h1 {
 }
 
 .first {
+    grid-area: gold;
     background-color: var(--gold-light);
+    --icon-color: var(--gold);
     --full-height: 250px;
     animation: slide-in 400ms ease 1 both;
 }
 
 .second {
+    grid-area: silver;
     background-color: var(--silver-light);
     --icon-color: var(--silver);
     --full-height: 175px;
-    animation: slide-in 400ms ease 1 both 425ms;
+    border-top-right-radius: 0;
+    animation: slide-in 400ms ease 1 both 400ms;
 }
 
 .third {
+    grid-area: bronze;
     background-color: var(--bronze-light);
     --icon-color: var(--bronze);
     --full-height: 100px;
-    animation: slide-in 400ms ease 1 both 850ms;
+    border-top-left-radius: 0;
+    animation: slide-in 400ms ease 1 both 800ms;
 }
 
 @keyframes pop-in {

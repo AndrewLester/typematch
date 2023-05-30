@@ -168,6 +168,7 @@ function handleKeyDown(e: KeyboardEvent) {
         } else if (e.key === '>' && dev) {
             text = currentSection;
             input!.value += currentSection.slice(common_prefix.length);
+            dispatch('input', input!.value);
         } else {
             text += e.key;
         }
@@ -255,11 +256,10 @@ export function focus() {
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div
         class="wrapper"
-        class:done
+        class:done={currentSectionNumber === passageSections.length}
         class:focused
         class:started
-        style:--current-section-number={currentSectionNumber -
-            sectionViewStart}
+        style:--current-section-number={currentSectionNumber - sectionViewStart}
         on:click={() => input?.focus()}
     >
         {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i + sectionViewStart)}
@@ -275,11 +275,9 @@ export function focus() {
                                     class:other-cursor={i >=
                                         common_prefix.length &&
                                         !!cursorMap[i + sectionCharIndex]}
-                                    data-user={cursorMap[
-                                        i + sectionCharIndex
-                                    ]?.name}
-                                    class:hidden={i <
-                                        common_prefix.length &&
+                                    data-user={cursorMap[i + sectionCharIndex]
+                                        ?.name}
+                                    class:hidden={i < common_prefix.length &&
                                         letter !== ' '}>{letter}</span
                                 >
                             {/each}

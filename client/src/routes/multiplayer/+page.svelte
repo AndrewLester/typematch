@@ -53,7 +53,7 @@ const setupOnCreateGame: SubmitFunction = ({ data, cancel }) => {
             autofocus
             required
             minlength="1"
-            maxlength="40"
+            maxlength="16"
         />
         <div class="button-row">
             <button disabled={submitting}>Create</button>
