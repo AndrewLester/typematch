@@ -81,7 +81,7 @@ export function focus() {
     </svelte:fragment>
 </Editor>
 
-<Podium bind:podium users={finishedUsers} />
+<Podium bind:podium first={finishedUsers[0]} second={finishedUsers[1]} third={finishedUsers[2]} />
 
 <aside>
     <Leaderboard users={finishedUsers} />

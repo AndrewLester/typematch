@@ -3,27 +3,29 @@ import type { User } from '$lib/types';
 import Trophy from '../icons/Trophy.svelte';
 
 export let podium;
-export let users: User[];
+export let first: User | undefined;
+export let second: User | undefined;
+export let third: User | undefined;
 </script>
 
 <dialog bind:this={podium}>
     <h1>Podium</h1>
     <button>X</button>
     <div class="podium">
-        {#if users.length > 1}
-            <div>
+        {#if second}
+            <div class="second">
                 <Trophy width="25%" height="25%" />
-                <p>{users[1].name}</p>
+                <p>{second.name}</p>
             </div>
         {/if}
-        <div>
+        <div class="first">
             <Trophy width="25%" height="25%" />
-            <p>{users[0]?.name}</p>
+            <p>{first?.name}</p>
         </div>
-        {#if users.length > 2}
-            <div>
+        {#if third}
+            <div class="third">
                 <Trophy width="25%" height="25%" />
-                <p>{users[2].name}</p>
+                <p>{third.name}</p>
             </div>
         {/if}
     </div>
@@ -87,20 +89,20 @@ dialog > h1 {
     font-weight: bold;
 }
 
-.podium > div:nth-child(2) {
+.first {
     background-color: var(--gold-light);
     --full-height: 250px;
     animation: slide-in 400ms ease 1 both;
 }
 
-.podium > div:nth-child(1) {
+.second {
     background-color: var(--silver-light);
     --icon-color: var(--silver);
     --full-height: 175px;
     animation: slide-in 400ms ease 1 both 425ms;
 }
 
-.podium > div:nth-child(3) {
+.third {
     background-color: var(--bronze-light);
     --icon-color: var(--bronze);
     --full-height: 100px;
