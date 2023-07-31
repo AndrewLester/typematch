@@ -5,78 +5,86 @@ import { invalidate } from '$app/navigation';
 
 import { page } from '$app/stores';
 import { PUBLIC_WORKER_HOST } from '$env/static/public';
-import { gameURL } from '$lib/api';
 import { sleep } from '$lib/async';
 import Countdown from '$lib/components/Countdown.svelte';
-import Hoverable from '$lib/components/Hoverable.svelte';
 import Multiplayer from '$lib/components/Multiplayer.svelte';
 import MultiplayerStatisticsView from '$lib/components/MultiplayerStatisticsView.svelte';
 import { countWords, passages } from '$lib/passages';
 import type { SingleplayerStatistics } from '$lib/statistics';
 import { clock, multiplayerWSStore, preferences, time } from '$lib/stores';
 import { horizontalSlide } from '$lib/transition';
-import { countdownTime, GameState } from '$lib/types';
+import { GameState, countdownTime } from '$lib/types';
 import { onMount, tick } from 'svelte';
-import { slide } from 'svelte/transition';
-import type { PageData } from './$types';
-import type { FormEventHandler, HTMLFormAttributes } from 'svelte/elements';
+import type { FormEventHandler } from 'svelte/elements';
+import type { Readable } from 'svelte/store';
+import { scale, slide } from 'svelte/transition';
 
-export let data: PageData;
+export let data;
 
+let { game } = data;
+let extend = false;
+let gameStore: ReturnType<typeof multiplayerWSStore> | undefined;
+let statsOpen = false;
+let inspect: number | undefined;
+
+let multiplayer: Multiplayer | undefined;
+let statistics: SingleplayerStatistics | undefined;
+let stats: HTMLButtonElement | undefined;
 let joinModal: HTMLDialogElement | undefined;
 let inGameModal: HTMLDialogElement | undefined;
-let extend = false;
-let multiplayer: Multiplayer | undefined;
-let gameStore: ReturnType<typeof multiplayerWSStore> | undefined;
-let statistics: SingleplayerStatistics | undefined = undefined;
-let statsOpen = false;
-let stats: HTMLButtonElement | undefined;
-let inspect: number | undefined = undefined;
 
-$: if (data.game.state === GameState.Waiting) {
+let countdownTimer: Readable<Date> | undefined;
+
+$: if (game.state === GameState.Waiting) {
     inspect = undefined;
     statsOpen = false;
 }
 
-$: userCount = Object.values(data?.game?.users).length;
+$: userCount = Object.values(game.users).length;
 // Not sure why but sometimes $page.params.code is undefined
-$: if ($preferences?.name && $page.params.code && !gameStore) {
+$: if (browser && $preferences?.name) {
     gameStore = multiplayerWSStore(
         `ws${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
             $page.params.code
         }/connect?name=${$preferences?.name}`,
     );
 }
+$: if ($gameStore) {
+    game = $gameStore;
+}
+
 $: if (
     !data.me &&
     userCount > 0 &&
     browser &&
-    data.game.state === GameState.Waiting &&
+    game.state === GameState.Waiting &&
     $preferences?.name
 ) {
-    invalidate(`${gameURL}/${$page.params.code}/me`);
+    invalidate('game:state');
 }
-const goMessageDuration = 500;
-$: countdownTimer =
-    data.game.state === GameState.Countdown ||
-    (data.game.state === GameState.Playing &&
-        $time.getTime() - data.game.countdownTime! <
-            countdownTime + goMessageDuration)
-        ? clock(100)
-        : null;
 
-$: if ($gameStore) data.game = $gameStore;
-$: gameReady = !!$gameStore;
+const goMessageDuration = 500;
+$: isCountdown =
+    game.state === GameState.Countdown ||
+    (game.state === GameState.Playing &&
+        $time.getTime() - game.local?.countdownTime! <
+            countdownTime + goMessageDuration);
+$: if (isCountdown) {
+    countdownTimer = clock(100);
+} else {
+    countdownTimer = undefined;
+}
+
 $: if (
     statistics &&
-    gameReady &&
-    data?.me?.position !== data.game.passage?.length
+    game.state === GameState.Playing &&
+    data.me?.finished === undefined
 ) {
     gameStore?.sendStatistics(statistics);
 }
 
 onMount(() => {
-    if (!data.game.passage) {
+    if (!game.passage) {
         sleep(650).then(() => (extend = true));
     }
 
@@ -84,7 +92,7 @@ onMount(() => {
         return;
     }
 
-    if (data.game.state !== GameState.Waiting) {
+    if (game.state !== GameState.Waiting) {
         inGameModal?.showModal();
         return;
     }
@@ -102,21 +110,16 @@ async function selectPassage(passageIndex: number) {
         length: passages[passageIndex].length,
     };
 
-    await fetch(
-        `http${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
-            $page.params.code
-        }/passage`,
-        {
-            method: 'POST',
-            body: JSON.stringify(passage),
-            headers: {
-                'Content-Type': 'text/plain',
-            },
-            credentials: 'include',
+    await fetch(`//${PUBLIC_WORKER_HOST}/game/${$page.params.code}/passage`, {
+        method: 'POST',
+        body: JSON.stringify(passage),
+        headers: {
+            'Content-Type': 'text/plain',
         },
-    );
+        credentials: 'include',
+    });
 
-    data.game.passage = passage;
+    game.passage = passage;
 }
 
 function onInput(e: CustomEvent<string>) {
@@ -146,10 +149,10 @@ function startGame() {
 }
 </script>
 
-{#if !data.game.passage}
+{#if !game.passage}
     <section
-        in:slide={{ delay: 250 }}
-        out:slide
+        in:slide|global={{ delay: 250 }}
+        out:slide|global
         class="select-wrapper"
         class:extend
         on:outrostart={() => (extend = false)}
@@ -170,40 +173,20 @@ function startGame() {
         </div>
     </section>
 {:else}
-    <section class="game" in:slide={{ delay: 250 }} out:slide>
-        {#if data.game?.users}
+    <section class="game" in:slide|global={{ delay: 250 }} out:slide|global>
+        {#if game?.users}
             <section class="multiplayer-bar">
-                {#if data.me?.admin && data.game.state === GameState.Waiting}
+                {#if data.me?.admin && game.state === GameState.Waiting}
                     <button
                         on:click={startGame}
                         transition:horizontalSlide|local
                         class="start-game">Start game</button
                     >
                 {/if}
-                {#each Object.values(data.game.users) as user, i (user.id)}
-                    <Hoverable let:hovering>
-                        <div
-                            class="player"
-                            class:me={user.id === data.me?.id}
-                            class:offline={!user.connected && browser}
-                        >
-                            <span class="player-name" class:admin={user.admin}
-                                >{user.name}</span
-                            >
-                            {#if data?.game.state === GameState.Waiting || hovering}<span
-                                    class="player-ping"
-                                    transition:horizontalSlide|local
-                                    >({user.ping}ms)</span
-                                >{/if}
-                            {#if i !== userCount - 1}&mdash;{/if}
-                        </div>
-                    </Hoverable>
-                {/each}
-                {#if countdownTimer && $countdownTimer !== null}
+                {#if $countdownTimer && game.local?.countdownTime}
                     {@const countdown =
                         countdownTime -
-                        ($countdownTimer.getTime() -
-                            (data.game?.countdownTime ?? 0))}
+                        ($countdownTimer.getTime() - game.local.countdownTime)}
                     <div class="countdown-wrapper">
                         <Countdown {countdown} totalTime={countdownTime} />
                     </div>
@@ -214,7 +197,7 @@ function startGame() {
             bind:this={multiplayer}
             bind:statistics
             me={data.me}
-            game={data.game}
+            {game}
             on:input={onInput}
         />
     </section>
@@ -226,11 +209,11 @@ function startGame() {
     out:slide={{ duration: 250 }}
     class:open={statsOpen}
 >
-    {#if data.game.statistics && data.game.state === GameState.Finished}
+    {#if game.statistics && game.state === GameState.Finished}
         <div
             class="stats-wrapper"
-            in:slide|local={{ delay: 250 }}
-            out:slide|local={{ duration: 250 }}
+            in:slide={{ delay: 250 }}
+            out:slide={{ duration: 250 }}
             on:outroend={() => (statsOpen = false)}
         >
             <button
@@ -244,10 +227,10 @@ function startGame() {
             >
                 <MultiplayerStatisticsView
                     me={data.me}
-                    users={data.game.users}
-                    statistics={data.game.statistics}
+                    users={game.users}
+                    statistics={game.statistics}
                     skeleton={!statsOpen}
-                    startTime={data.game.startTime ?? 0}
+                    startTime={game.startTime ?? 0}
                     on:inspect={(e) => (inspect = e.detail)}
                 />
             </button>
@@ -333,27 +316,6 @@ function startGame() {
 .modal::backdrop {
     background-color: rgba(0, 0, 0, 0.5);
     backdrop-filter: saturate(180%) blur(5px);
-}
-.player {
-    margin-right: 10px;
-}
-.player-name {
-    font-size: 1.5rem;
-}
-.player-name.admin {
-    text-decoration: underline;
-}
-.me .player-name {
-    color: green;
-}
-.player-ping {
-    line-height: 1;
-    vertical-align: baseline;
-    display: inline-block;
-}
-.player.offline .player-name {
-    text-decoration: line-through;
-    color: rgb(163, 163, 163);
 }
 .select-wrapper {
     transition: all 250ms ease;

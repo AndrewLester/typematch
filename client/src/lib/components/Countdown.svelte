@@ -27,11 +27,11 @@ const [send, receive] = crossfade({
 </script>
 
 {#if countdown > Number((totalTime * (3 / 4)).toPrecision(1))}
-    <div class="absolute" in:receive={{ key }} out:send={{ key }}>
+    <div class="absolute" in:receive|global={{ key }} out:send|global={{ key }}>
         <CountdownText {countdown} {totalTime} />
     </div>
 {:else}
-    <div class="relative" in:receive={{ key }} out:send={{ key }}>
+    <div class="relative" in:receive|global={{ key }} out:send|global={{ key }}>
         <CountdownText {countdown} {totalTime} />
     </div>
 {/if}

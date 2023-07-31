@@ -76,7 +76,7 @@ p.jump {
     66% {
         transform: scale(2) rotate(-25deg);
     }
-    to {
+    100% {
         transform: scale(2) rotate(0);
     }
 }

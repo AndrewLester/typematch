@@ -241,7 +241,7 @@ export function focus() {
             {startTime ? timerTimeFormat(elapsed) : '0:00'}
         </span>
         {#if !started}
-            <span transition:fade|local={{ duration: 250 }}>
+            <span transition:fade={{ duration: 250 }}>
                 <slot name="waiting">Waiting to start...</slot>
             </span>
         {/if}

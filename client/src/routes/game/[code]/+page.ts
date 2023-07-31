@@ -1,10 +1,10 @@
 import { gameURL } from '$lib/api';
 import type { MultiplayerGame, User } from '$lib/types';
-import type { Load } from '@sveltejs/kit';
 
 export const ssr = false;
 
-export const load: Load = async ({ params, fetch }) => {
+export async function load({ params, fetch, depends }) {
+    depends('game:state');
     return {
         game: fetch(`${gameURL}/${params.code}`).then((res) =>
             res.json(),
@@ -15,4 +15,4 @@ export const load: Load = async ({ params, fetch }) => {
             res.status < 300 ? res.json() : null,
         ) as Promise<User>,
     };
-};
+}

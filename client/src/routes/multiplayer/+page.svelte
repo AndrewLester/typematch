@@ -1,12 +1,12 @@
 <script lang="ts">
-import { enhance, type SubmitFunction } from '$app/forms';
+import { enhance } from '$app/forms';
 import { preferences } from '$lib/stores';
-import type { ActionResult } from '@sveltejs/kit';
+import type { SubmitFunction } from '@sveltejs/kit';
 import { slide } from 'svelte/transition';
 
 let submitting = false;
 
-const setupOnCreateGame: SubmitFunction = ({ data, cancel }) => {
+const setupOnCreateGame: SubmitFunction = ({ cancel }) => {
     if (submitting) {
         cancel();
         return;
@@ -14,22 +14,20 @@ const setupOnCreateGame: SubmitFunction = ({ data, cancel }) => {
 
     submitting = true;
 
-    function onCreateGame({
+    const onCreateGame: ReturnType<SubmitFunction> = ({
         result,
         update,
-    }: {
-        result: ActionResult;
-        update: () => {};
-    }) {
+        formData,
+    }) => {
         if (result.type === 'redirect') {
             preferences.set({
-                name: data.get('name') as string,
+                name: formData.get('name') as string,
             });
         }
 
         update();
         submitting = false;
-    }
+    };
 
     return onCreateGame;
 };
@@ -37,7 +35,7 @@ const setupOnCreateGame: SubmitFunction = ({ data, cancel }) => {
 
 <!-- Delay lets previous element slide a little bit out -->
 
-<section in:slide={{ delay: 250 }} out:slide>
+<section in:slide|global={{ delay: 250 }} out:slide|global>
     <header>
         <h1>Multiplayer</h1>
     </header>

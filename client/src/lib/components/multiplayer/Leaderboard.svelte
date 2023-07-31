@@ -43,21 +43,23 @@ function leaderboardSort(a: User, b: User) {
 <div>
     {#each leaderboard as user, i (user.id)}
         <p
-            in:slideLeft|local={{ delay: i * 50 }}
+            in:slideLeft={{ delay: i * 50 }}
             class:finished={user.finished !== undefined}
             animate:flip={{ duration: 250 }}
         >
             <span class="icon">
                 {#if user.finished !== undefined && i <= 3}
-                    <span transition:scale|local={{ delay: 100 }}>
+                    <span transition:scale={{ delay: 100 }}>
                         <Trophy />
                     </span>
                 {:else}
-                    <strong out:scale|local={{ duration: 100 }}>{i + 1}</strong>
+                    <strong out:scale={{ duration: 100 }}>{i + 1}</strong>
                 {/if}
             </span>
 
-            {user.name}
+            <span class="username" class:disconnected={!user.connected}
+                >{user.name}</span
+            >
         </p>
     {/each}
 </div>
@@ -114,5 +116,9 @@ p .icon > * {
 .finished:nth-child(3) {
     background-color: var(--bronze-light);
     --icon-color: var(--bronze);
+}
+
+.username.disconnected {
+    text-decoration: line-through;
 }
 </style>

@@ -4,12 +4,9 @@ import {
     SingleplayerStatisticsCollector,
     type SingleplayerStatistics,
 } from '$lib/statistics';
-import { confetti } from '@neoconfetti/svelte';
-import { horizontalSlide } from '$lib/transition';
 import { GameState, type MultiplayerGame, type User } from '$lib/types';
-import { slide } from 'svelte/transition';
+import { confetti } from '@neoconfetti/svelte';
 import Editor from './Editor.svelte';
-import Trophy from './icons/Trophy.svelte';
 import Leaderboard from './multiplayer/Leaderboard.svelte';
 import Podium from './multiplayer/Podium.svelte';
 
@@ -59,8 +56,10 @@ export function focus() {
     bind:this={editor}
     {passage}
     position={me?.position ?? 0}
-    startTime={game.startTime ? new Date(game.startTime) : undefined}
-    endTime={game.endTime ? new Date(game.endTime) : undefined}
+    startTime={game.local?.startTime
+        ? new Date(game.local.startTime)
+        : undefined}
+    endTime={game.local?.endTime ? new Date(game.local.endTime) : undefined}
     on:keydown={(e) => {
         if (game.state !== GameState.Playing) {
             e.preventDefault();

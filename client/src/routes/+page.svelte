@@ -5,9 +5,8 @@ import { passages } from '$lib/passages';
 import type { SingleplayerStatistics } from '$lib/statistics';
 import { tick } from 'svelte';
 import { slide } from 'svelte/transition';
-import type { PageData } from './$types';
 
-export let data: PageData;
+export let data;
 
 let editor: Singleplayer | undefined;
 let stats: HTMLButtonElement | undefined;
@@ -22,12 +21,12 @@ $: if (!done) {
 }
 </script>
 
-<svelte:head>
-    <title>TypeMatch</title>
-</svelte:head>
-
 <!-- Delay lets previous element slide a little bit out -->
-<section class="editor-wrapper" in:slide={{ delay: 250 }} out:slide>
+<section
+    class="editor-wrapper"
+    in:slide|global={{ delay: 250 }}
+    out:slide|global
+>
     <!-- <button
         class="prev"
         on:pointerdown={async () => {
@@ -93,7 +92,7 @@ $: if (!done) {
     margin-inline: auto;
 }
 
-.editor-wrapper > button {
+/* .editor-wrapper > button {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -105,7 +104,7 @@ $: if (!done) {
 
 .next {
     right: -50px;
-}
+} */
 
 .stats-wrapper {
     position: relative;

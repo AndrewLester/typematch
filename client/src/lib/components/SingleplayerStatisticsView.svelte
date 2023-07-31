@@ -3,10 +3,14 @@ import type {
     SingleplayerStatistics,
     TimeseriesPlayerStatistic,
 } from '$lib/statistics';
-import { ComboChart } from '@carbon/charts-svelte';
-
 import type { ComboChart as ComboChartRaw } from '@carbon/charts';
-import type { ChartTabularData, ScaleTypes } from '@carbon/charts/interfaces';
+import {
+    ComboChart,
+    type ChartTabularData,
+    ScaleTypes,
+    type ComboChartOptions,
+} from '@carbon/charts-svelte';
+import '@carbon/charts-svelte/styles.css';
 import { createEventDispatcher, onMount } from 'svelte';
 
 export let startTime: number;
@@ -36,7 +40,7 @@ $: singlePlayerOverallStatisticsOptions = {
         bottom: {
             title: 'Time',
             mapsTo: 'date',
-            scaleType: 'time' as ScaleTypes.TIME,
+            scaleType: ScaleTypes.TIME,
             ticks: {
                 formatter: new Intl.DateTimeFormat('en', {
                     minute: '2-digit',
@@ -54,12 +58,12 @@ $: singlePlayerOverallStatisticsOptions = {
         left: {
             title: 'WPM',
             mapsTo: 'WPM',
-            scaleType: 'linear' as ScaleTypes.LINEAR,
+            scaleType: ScaleTypes.LINEAR,
         },
         right: {
             title: 'Percent (GRN) / Misses (RED)',
             mapsTo: 'value',
-            scaleType: 'linear' as ScaleTypes.LINEAR,
+            scaleType: ScaleTypes.LINEAR,
             correspondingDatasets: ['Misses', 'Percent'],
         },
     },
@@ -87,9 +91,21 @@ $: singlePlayerOverallStatisticsOptions = {
     timeScale: {
         addSpaceOnEdges: 0,
     },
+    tooltip: {
+        valueFormatter(value, label) {
+            if (label === 'Time') {
+                return new Intl.DateTimeFormat('en', {
+                    minute: '2-digit',
+                    second: '2-digit',
+                }).format(value);
+            }
+            return value;
+        },
+    },
     curve: 'curveMonotoneX',
     height: '400px',
-};
+    theme: 'g100',
+} as ComboChartOptions;
 
 onMount(() => {
     chart.services.events.addEventListener('scatter-mouseover', pointMouseOver);

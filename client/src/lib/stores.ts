@@ -1,11 +1,8 @@
 import { browser } from '$app/environment';
-import { writable as storageWritable } from 'svelte-local-storage-store';
+import { persisted } from 'svelte-local-storage-store';
 import { readable, writable } from 'svelte/store';
 import { sleep } from './async';
-import type {
-    MultiplayerStatistics,
-    SingleplayerStatistics,
-} from './statistics';
+import type { SingleplayerStatistics } from './statistics';
 import type { MultiplayerGame } from './types';
 
 export const clock = (interval: number) =>
@@ -21,7 +18,7 @@ export function multiplayerWSStore(webSocketURL: string) {
 
     const { subscribe } = writable<MultiplayerGame | undefined>(
         undefined,
-        (set) => {
+        (_, update) => {
             if (!browser) {
                 return;
             }
@@ -57,7 +54,26 @@ export function multiplayerWSStore(webSocketURL: string) {
                 socket.addEventListener('message', (message) => {
                     const data = JSON.parse(message.data);
                     if (data.type === 'game') {
-                        set(data?.data);
+                        update((game) => {
+                            const local = game?.local || {};
+                            const now = Date.now();
+                            const useNow = (time: number) =>
+                                Math.abs(now - time) < 10000;
+                            const update = (property: keyof typeof local) => {
+                                if (data.data[property] && !local[property]) {
+                                    local[property] = useNow(
+                                        data.data[property],
+                                    )
+                                        ? now
+                                        : data.data[property];
+                                }
+                            };
+                            update('countdownTime');
+                            update('startTime');
+                            update('endTime');
+
+                            return { local, ...data.data };
+                        });
                     } else if (data.type === 'pong') {
                         lastPingMs = Date.now() - lastPingTime;
                     }
@@ -83,13 +99,20 @@ export function multiplayerWSStore(webSocketURL: string) {
         },
     );
 
+    const isConnected = () => {
+        if (!socket) return false;
+        return socket.readyState === WebSocket.OPEN;
+    };
+
     const updatePosition = (position: number) => {
+        if (!isConnected()) return;
         socket?.send(
             JSON.stringify({ type: 'update-position', data: position }),
         );
     };
 
     const sendStatistics = (statistics: SingleplayerStatistics) => {
+        if (!isConnected()) return;
         socket?.send(JSON.stringify({ type: 'statistics', data: statistics }));
     };
 
@@ -97,6 +120,7 @@ export function multiplayerWSStore(webSocketURL: string) {
         subscribe,
         updatePosition,
         sendStatistics,
+        isConnected,
     };
 }
 
@@ -104,7 +128,7 @@ export interface Preferences {
     name: string;
 }
 
-export const preferences = storageWritable<Preferences | undefined>(
+export const preferences = persisted<Preferences | undefined>(
     'preferences',
     undefined,
 );
