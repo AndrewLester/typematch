@@ -10,7 +10,10 @@ import Countdown from '$lib/components/Countdown.svelte';
 import Multiplayer from '$lib/components/Multiplayer.svelte';
 import MultiplayerStatisticsView from '$lib/components/MultiplayerStatisticsView.svelte';
 import { countWords, passages } from '$lib/passages';
-import type { SingleplayerStatistics } from '$lib/statistics';
+import type {
+    MultiplayerStatistics,
+    SingleplayerStatistics,
+} from '$lib/statistics';
 import { clock, multiplayerWSStore, preferences, time } from '$lib/stores';
 import { horizontalSlide } from '$lib/transition';
 import { GameState, countdownTime } from '$lib/types';

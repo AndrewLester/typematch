@@ -18,6 +18,8 @@ export let statistics: MultiplayerStatistics;
 export let startTime: number;
 export let skeleton = false;
 
+let savedStatistics: MultiplayerStatistics = statistics;
+
 const dispatch = createEventDispatcher<{
     inspect: number;
 }>();
@@ -130,7 +132,7 @@ function computeMultiplayerPercentStatistics(
 
     <LineChart
         bind:chart
-        data={computeMultiplayerPercentStatistics(statistics)}
+        data={computeMultiplayerPercentStatistics(savedStatistics)}
         theme="g100"
         options={multiplayerPercentStatisticsOptions}
     />
@@ -150,13 +152,13 @@ function computeMultiplayerPercentStatistics(
     <SingleplayerStatisticsView
         {skeleton}
         {startTime}
-        statistics={statistics[me.id]}
+        statistics={savedStatistics[me.id]}
         on:inspect
     />
 {/if}
 
 <style>
-.statistics {
+/* .statistics {
     display: flex;
     flex-flow: row wrap;
     gap: 50px;
@@ -186,5 +188,5 @@ function computeMultiplayerPercentStatistics(
 
 .statistic > span {
     color: rgb(200, 200, 200);
-}
+} */
 </style>
