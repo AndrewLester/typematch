@@ -14,7 +14,7 @@ const setupOnCreateGame: SubmitFunction = ({ cancel }) => {
 
     submitting = true;
 
-    const onCreateGame: ReturnType<SubmitFunction> = ({
+    const onCreateGame: ReturnType<SubmitFunction> = async ({
         result,
         update,
         formData,
@@ -25,7 +25,7 @@ const setupOnCreateGame: SubmitFunction = ({ cancel }) => {
             });
         }
 
-        update();
+        await update();
         submitting = false;
     };
 
@@ -66,19 +66,29 @@ const setupOnCreateGame: SubmitFunction = ({ cancel }) => {
         <div>
             <h2>Join</h2>
             <p>Have a code already?</p>
-            <form method="post" action="?/joinGame" use:enhance>
+            <form
+                method="post"
+                action="?/joinGame"
+                use:enhance={() => {
+                    submitting = true;
+                    return async ({ update }) => {
+                        await update();
+                        submitting = false;
+                    };
+                }}
+            >
                 <label for="code">Room code:</label>
                 <!-- svelte-ignore a11y-autofocus -->
                 <input
                     id="code"
                     type="text"
-                    placeholder="00000"
+                    placeholder="abc12"
                     name="code"
                     autofocus
                     required
                     minlength="5"
                     maxlength="5"
-                    pattern="\d{'{5,5}'}"
+                    pattern="[\da-zA-Z]+"
                 />
                 <div class="button-row">
                     <button disabled={submitting}>Join</button>

@@ -8,7 +8,7 @@ export const actions = {
     },
     async joinGame({ request }) {
         const formData = await request.formData();
-        const code = Number(formData.get('code'));
+        const code = formData.get('code')?.toString().toLowerCase();
         throw redirect(303, `/game/${code}`);
     },
 };
