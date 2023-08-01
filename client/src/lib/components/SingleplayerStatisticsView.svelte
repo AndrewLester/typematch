@@ -99,7 +99,7 @@ $: singlePlayerOverallStatisticsOptions = {
                     second: '2-digit',
                 }).format(value);
             }
-            return value;
+            return typeof value === 'number' ? value.toFixed(1) : value;
         },
     },
     curve: 'curveMonotoneX',

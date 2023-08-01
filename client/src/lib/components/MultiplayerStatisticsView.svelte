@@ -68,7 +68,7 @@ $: multiplayerPercentStatisticsOptions = {
                     second: '2-digit',
                 }).format(value);
             }
-            return value;
+            return typeof value === 'number' ? value.toPrecision(4) : value;
         },
     },
     curve: 'curveMonotoneX',

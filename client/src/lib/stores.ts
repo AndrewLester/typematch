@@ -69,8 +69,6 @@ export function multiplayerWSStore(webSocketURL: string) {
                                 }
                             };
                             update('countdownTime');
-                            update('startTime');
-                            update('endTime');
 
                             return { local, ...data.data };
                         });

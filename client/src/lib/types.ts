@@ -30,8 +30,6 @@ export interface MultiplayerGame {
     };
     statistics: Record<string, any>;
     local?: {
-        startTime?: number;
-        endTime?: number;
         countdownTime?: number;
     };
 }

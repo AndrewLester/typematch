@@ -261,6 +261,8 @@ export function focus() {
         class:started
         style:--current-section-number={currentSectionNumber - sectionViewStart}
         on:click={() => input?.focus()}
+        role="textbox"
+        tabindex="0"
     >
         {#each passageSections.slice(sectionViewStart, sectionViewEnd) as section, i (i + sectionViewStart)}
             {@const sectionCharIndex = passage.indexOf(section)}
@@ -388,6 +390,7 @@ span.other-cursor::after {
     padding: 0.25em;
     background-color: rgba(255, 0, 0, 0.75);
     color: white;
+    white-space: nowrap;
 }
 span.correct {
     color: rgb(217, 255, 228);

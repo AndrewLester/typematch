@@ -266,7 +266,9 @@ export class GameDurableObject extends createDurable() {
 								this.game.users,
 							).every(
 								(user) =>
-									user.position === this.game.passage?.length,
+									user.position ===
+										this.game.passage?.length ||
+									!user.connected,
 							);
 
 							if (allDone) {

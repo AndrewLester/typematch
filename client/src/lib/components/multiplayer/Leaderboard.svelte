@@ -1,20 +1,22 @@
 <script lang="ts">
 import type { User } from '$lib/types';
+import { flip } from 'svelte/animate';
+import { backOut } from 'svelte/easing';
 import { scale } from 'svelte/transition';
 import Trophy from '../icons/Trophy.svelte';
-import { cubicInOut } from 'svelte/easing';
-import { flip } from 'svelte/animate';
+import Hoverable from '../Hoverable.svelte';
+import { horizontalSlide } from '$lib/transition';
 
 export let users: User[];
 
 $: leaderboard = users.sort(leaderboardSort);
 
-function slideLeft(element: Element, { delay = 0, duration = 350 }) {
+function slideLeft(_: HTMLElement, { delay = 0, duration = 350 }) {
     return {
         delay,
         duration,
         css: (t: number) => {
-            const eased = cubicInOut(t);
+            const eased = backOut(t);
             return `
             transform: translateX(${(1 - eased) * 100}%);
             opacity: ${eased};
@@ -41,6 +43,7 @@ function leaderboardSort(a: User, b: User) {
 </script>
 
 <div>
+    <h2>Leaderboard</h2>
     {#each leaderboard as user, i (user.id)}
         <p
             in:slideLeft={{ delay: i * 50 }}
@@ -57,19 +60,34 @@ function leaderboardSort(a: User, b: User) {
                 {/if}
             </span>
 
-            <span class="username" class:disconnected={!user.connected}
-                >{user.name}</span
-            >
+            <Hoverable let:hovering>
+                <span
+                    class="username"
+                    class:disconnected={!user.connected}
+                    class:admin={user.admin}
+                >
+                    {user.name}
+                </span>
+                {#if hovering}
+                    <span class="ping" transition:horizontalSlide>
+                        {user.ping}ms
+                    </span>
+                {/if}
+            </Hoverable>
         </p>
     {/each}
 </div>
 
 <style>
+h2 {
+    text-decoration: underline;
+    text-underline-offset: 5px;
+}
+
 div {
     display: flex;
     flex-flow: column nowrap;
     gap: 10px;
-    overflow: hidden;
 }
 
 p {
@@ -82,6 +100,10 @@ p {
     clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%);
     color: black;
     transition: background-color 250ms ease;
+}
+
+.username.admin {
+    text-decoration: underline;
 }
 
 p .icon {
@@ -103,22 +125,28 @@ p .icon > * {
     background-color: rgb(225, 225, 225);
 }
 
-.finished:first-child {
+.finished:first-of-type {
     background-color: var(--gold-light);
     --icon-color: var(--gold);
 }
 
-.finished:nth-child(2) {
+.finished:nth-of-type(2) {
     background-color: var(--silver-light);
     --icon-color: var(--silver);
 }
 
-.finished:nth-child(3) {
+.finished:nth-of-type(3) {
     background-color: var(--bronze-light);
     --icon-color: var(--bronze);
 }
 
 .username.disconnected {
     text-decoration: line-through;
+    color: rgb(73, 73, 73);
+}
+
+.ping {
+    font-size: 0.55rem;
+    align-self: center;
 }
 </style>
