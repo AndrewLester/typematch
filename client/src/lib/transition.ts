@@ -1,5 +1,5 @@
 import { cubicOut } from 'svelte/easing';
-import type { EasingFunction } from 'svelte/types/runtime/transition';
+import type { EasingFunction } from 'svelte/transition';
 
 type HorizontalSlideParameters = {
     delay?: number;
