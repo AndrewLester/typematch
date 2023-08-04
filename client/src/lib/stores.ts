@@ -135,4 +135,6 @@ export interface Preferences {
     typingMode?: TypingMode;
 }
 
-export const preferences = persisted<Preferences>('preferences', {});
+export const preferences = persisted<Preferences>('preferences', {
+    typingMode: 'passage-separated',
+});

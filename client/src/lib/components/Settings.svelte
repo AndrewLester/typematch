@@ -57,7 +57,9 @@ function onClose() {
                 name="editor-typing-mode"
                 bind:value={typingMode}
             >
-                <option value="passage-separated">Passage above input</option>
+                <option value="passage-separated" selected
+                    >Passage above input</option
+                >
                 <option value="inline">Inline</option>
             </select>
         </form>

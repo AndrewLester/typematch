@@ -125,7 +125,7 @@ $: sectionViewEnd = done
       );
 
 $: editorTypingMode =
-    $preferences.typingMode === 'passage-separated' ? PassageSeparated : Inline;
+    $preferences.typingMode === 'inline' ? Inline : PassageSeparated;
 
 function handleKeyDown(e: KeyboardEvent) {
     // TODO: Remove all handling of text input by user from key down... bind to text area
