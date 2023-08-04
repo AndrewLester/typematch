@@ -20,7 +20,7 @@ import { GameState, countdownTime } from '$lib/types';
 import { onMount, tick } from 'svelte';
 import type { FormEventHandler } from 'svelte/elements';
 import type { Readable } from 'svelte/store';
-import { scale, slide } from 'svelte/transition';
+import { fade, scale, slide } from 'svelte/transition';
 
 export let data;
 
@@ -44,12 +44,14 @@ $: if (game.state === GameState.Waiting) {
 }
 
 $: userCount = Object.values(game.users).length;
+$: name = $preferences?.name;
 // Not sure why but sometimes $page.params.code is undefined
-$: if (browser && $preferences?.name && $page.params.code && !gameStore) {
+$: if (browser && name && $page.params.code) {
+    gameStore?.disconnect();
     gameStore = multiplayerWSStore(
         `ws${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
             $page.params.code
-        }/connect?name=${$preferences?.name}`,
+        }/connect?name=${name}`,
     );
 }
 $: if ($gameStore) {
@@ -130,11 +132,12 @@ function onInput(e: CustomEvent<string>) {
 }
 
 const joinGame: FormEventHandler<HTMLFormElement> = (e) => {
-    preferences.set({
+    preferences.update((cur) => ({
+        ...cur,
         name:
             new FormData(e.target as HTMLFormElement).get('name')?.toString() ??
             '',
-    });
+    }));
     joinModal?.close();
 };
 
@@ -179,12 +182,17 @@ function startGame() {
     <section class="game" in:slide|global={{ delay: 250 }} out:slide|global>
         {#if game?.users}
             <section class="multiplayer-bar">
-                {#if data.me?.admin && game.state === GameState.Waiting}
-                    <button
-                        on:click={startGame}
-                        transition:horizontalSlide|local
-                        class="start-game">Start game</button
-                    >
+                {#if game.state === GameState.Waiting}
+                    {#if data.me?.admin}
+                        <button
+                            on:click={startGame}
+                            transition:horizontalSlide|global
+                            class="start-game">Start game</button
+                        >
+                    {/if}
+                    <p transition:fade>
+                        Code: <strong>{$page.params.code}</strong>
+                    </p>
                 {/if}
                 {#if $countdownTimer && game.local?.countdownTime}
                     {@const countdown =

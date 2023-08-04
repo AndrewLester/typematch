@@ -114,19 +114,25 @@ export function multiplayerWSStore(webSocketURL: string) {
         socket?.send(JSON.stringify({ type: 'statistics', data: statistics }));
     };
 
+    const disconnect = () => {
+        if (!isConnected()) return;
+        socket?.close();
+    };
+
     return {
         subscribe,
         updatePosition,
         sendStatistics,
         isConnected,
+        disconnect,
     };
 }
 
+export type TypingMode = 'passage-separated' | 'inline';
+
 export interface Preferences {
-    name: string;
+    name?: string;
+    typingMode?: TypingMode;
 }
 
-export const preferences = persisted<Preferences | undefined>(
-    'preferences',
-    undefined,
-);
+export const preferences = persisted<Preferences>('preferences', {});

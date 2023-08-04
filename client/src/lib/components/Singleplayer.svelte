@@ -5,7 +5,7 @@ import {
     SingleplayerStatisticsCollector,
     type SingleplayerStatistics,
 } from '$lib/statistics';
-import Editor from './Editor.svelte';
+import Editor from './editors/Editor.svelte';
 
 export let passage: string;
 export let done = false;

@@ -20,9 +20,10 @@ const setupOnCreateGame: SubmitFunction = ({ cancel }) => {
         formData,
     }) => {
         if (result.type === 'redirect') {
-            preferences.set({
+            preferences.update((cur) => ({
+                ...cur,
                 name: formData.get('name') as string,
-            });
+            }));
         }
 
         await update();
@@ -57,6 +58,8 @@ const setupOnCreateGame: SubmitFunction = ({ cancel }) => {
                     required
                     minlength="1"
                     maxlength="16"
+                    autocomplete="off"
+                    bind:value={$preferences.name}
                 />
                 <div class="button-row">
                     <button disabled={submitting}>Create</button>
@@ -84,11 +87,11 @@ const setupOnCreateGame: SubmitFunction = ({ cancel }) => {
                     type="text"
                     placeholder="abc12"
                     name="code"
-                    autofocus
                     required
                     minlength="5"
                     maxlength="5"
                     pattern="[\da-zA-Z]+"
+                    autocomplete="off"
                 />
                 <div class="button-row">
                     <button disabled={submitting}>Join</button>

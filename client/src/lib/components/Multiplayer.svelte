@@ -6,11 +6,10 @@ import {
 } from '$lib/statistics';
 import { GameState, type MultiplayerGame, type User } from '$lib/types';
 import { confetti } from '@neoconfetti/svelte';
-import Editor from './Editor.svelte';
+import { fade } from 'svelte/transition';
+import Editor from './editors/Editor.svelte';
 import Leaderboard from './multiplayer/Leaderboard.svelte';
 import Podium from './multiplayer/Podium.svelte';
-import { horizontalSlide } from '$lib/transition';
-import { fade } from 'svelte/transition';
 
 export let me: User | undefined;
 export let game: MultiplayerGame;
