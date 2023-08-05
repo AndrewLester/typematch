@@ -102,7 +102,7 @@ onMount(() => {
         return;
     }
 
-    if (!$preferences) {
+    if (!$preferences?.name) {
         joinModal?.showModal();
     }
 });
