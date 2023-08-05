@@ -1,4 +1,5 @@
 <script lang="ts">
+import { browser } from '$app/environment';
 import { preferences, type TypingMode } from '$lib/stores';
 import { clickOutside } from '$lib/utils';
 
@@ -7,6 +8,11 @@ export let settingsVisible: boolean;
 let form: HTMLFormElement | undefined;
 
 $: localPrefs = $preferences;
+
+$: if (browser) {
+    document.documentElement.scrollTop = 0;
+    document.body.classList.toggle('dialog', settingsVisible);
+}
 
 function onClose() {
     if (form?.reportValidity()) {
