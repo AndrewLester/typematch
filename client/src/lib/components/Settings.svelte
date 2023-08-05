@@ -1,16 +1,16 @@
 <script lang="ts">
-import { preferences } from '$lib/stores';
+import { preferences, type TypingMode } from '$lib/stores';
 import { clickOutside } from '$lib/utils';
 
 export let settingsVisible: boolean;
 
 let form: HTMLFormElement | undefined;
 
-let { name, typingMode } = $preferences;
+$: localPrefs = $preferences;
 
 function onClose() {
     if (form?.reportValidity()) {
-        $preferences = { name, typingMode };
+        $preferences = localPrefs;
         settingsVisible = false;
     }
 }
@@ -49,13 +49,13 @@ function onClose() {
                 name="name"
                 minlength="1"
                 maxlength="16"
-                bind:value={name}
+                bind:value={localPrefs.name}
             />
             <label for="editor-typing-mode">Typing mode:</label>
             <select
                 id="editor-typing-mode"
                 name="editor-typing-mode"
-                bind:value={typingMode}
+                bind:value={localPrefs.typingMode}
             >
                 <option value="passage-separated" selected
                     >Passage above input</option

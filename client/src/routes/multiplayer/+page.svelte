@@ -14,18 +14,7 @@ const setupOnCreateGame: SubmitFunction = ({ cancel }) => {
 
     submitting = true;
 
-    const onCreateGame: ReturnType<SubmitFunction> = async ({
-        result,
-        update,
-        formData,
-    }) => {
-        if (result.type === 'redirect') {
-            preferences.update((cur) => ({
-                ...cur,
-                name: formData.get('name') as string,
-            }));
-        }
-
+    const onCreateGame: ReturnType<SubmitFunction> = async ({ update }) => {
         await update();
         submitting = false;
     };
