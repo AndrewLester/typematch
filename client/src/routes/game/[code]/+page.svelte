@@ -45,9 +45,10 @@ $: if (game.state === GameState.Waiting) {
 
 $: userCount = Object.values(game.users).length;
 $: name = $preferences?.name;
+const getGameStore = () => gameStore;
 // Not sure why but sometimes $page.params.code is undefined
 $: if (browser && name && $page.params.code) {
-    gameStore?.disconnect();
+    getGameStore()?.disconnect();
     gameStore = multiplayerWSStore(
         `ws${!dev ? 's' : ''}://${PUBLIC_WORKER_HOST}/game/${
             $page.params.code
