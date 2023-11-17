@@ -63,7 +63,7 @@ $: if (
     !data.me &&
     userCount > 0 &&
     browser &&
-    game.state === GameState.Waiting &&
+    gameStore?.isConnected() &&
     $preferences?.name
 ) {
     invalidate('game:state');
